@@ -43,7 +43,7 @@ def get_db():
         db.close()
 
 def init_db():
-    """Tabloları oluştur ve default admin ekle"""
+    """Tabloları oluştur ve default admin ekle - bcrypt 72-byte limit uyumlu"""
     from src.models import User
     from passlib.hash import bcrypt
     from src.config import DEFAULT_ADMIN_PASS
@@ -58,7 +58,8 @@ def init_db():
     try:
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
-            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")
+            # ✅ bcrypt 72-byte limit: şifreyi truncate et
+            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")[:72]
             hashed = bcrypt.hash(password_bytes)
             password_hash = hashed if isinstance(hashed, str) else hashed.decode("utf-8")
             new_admin = User(
@@ -71,7 +72,8 @@ def init_db():
             db.commit()
             print(f"✅ Default admin created: admin / {DEFAULT_ADMIN_PASS}")
         else:
-            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")
+            # Mevcut admin'in şifresini güncelle (aynı truncate mantığı)
+            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")[:72]
             try:
                 verified = bcrypt.verify(password_bytes, admin.password_hash)
                 if not verified:
