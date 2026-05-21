@@ -54,3 +54,43 @@ async def get_metrics(db: Session = Depends(get_db), user = Depends(require_admi
         }
     except Exception as e:
         return {"error": str(e), "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."}
+    
+
+
+
+@router.get("/api/setup-admin")
+async def setup_admin_once(db: Session = Depends(get_db)):
+    """
+    ⚠️ ONE-TIME SETUP ENDPOINT - Only works if no admin exists
+    Creates default admin user if not present.
+    Call once after deploy, then this endpoint returns 403.
+    """
+    from src.models import User
+    from passlib.hash import bcrypt
+    from src.config import DEFAULT_ADMIN_PASS
+    
+    # Check if any admin exists
+    existing_admin = db.query(User).filter(User.role == "admin").first()
+    if existing_admin:
+        return {"status": "skipped", "message": "Admin user already exists."}
+    
+    # Create default admin
+    password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")
+    hashed = bcrypt.hash(password_bytes)
+    password_hash = hashed if isinstance(hashed, str) else hashed.decode("utf-8")
+    
+    new_admin = User(
+        username="admin",
+        password_hash=password_hash,
+        role="admin",
+        password_change_required=False
+    )
+    db.add(new_admin)
+    db.commit()
+    
+    return {
+        "status": "created",
+        "username": "admin",
+        "password": DEFAULT_ADMIN_PASS,
+        "message": "✅ Default admin created. Please change password after first login."
+    }
