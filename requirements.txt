@@ -1,0 +1,45 @@
+fastapi==0.111.0
+uvicorn==0.29.0
+python-multipart==0.0.9
+jinja2==3.1.4
+sqlalchemy==2.0.30
+alembic==1.13.1
+aiosqlite==0.20.0
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+transformers==4.41.2
+torch==2.3.0
+accelerate==0.30.1
+pillow==10.3.0
+numpy==1.26.4
+scikit-learn==1.5.0
+requests==2.32.2
+python-dotenv==1.0.1
+loguru==0.7.2
+# Florence-2 CPU fallback için
+timm==1.0.27
+einops==0.8.2
+pytesseract==0.3.13
+# flash_attn Windows'ta CUDA gerektirir, opsiyonel:
+# flash-attn==2.5.0  # Sadece CUDA 11.8+ ile
+# Florence-2 CPU fallback için
+@'
+
+# === Production Optimizations ===
+fastapi-limiter==0.1.6
+slowapi==0.1.9
+python-multipart==0.0.9
+uvicorn[standard]==0.29.0
+
+# === Windows/CPU Fallbacks ===
+timm==1.0.27
+einops==0.8.2
+pytesseract==0.3.13
+
+# === Security ===
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+'@ | Out-File -Append -FilePath "requirements.txt" -Encoding utf8
+
+# Bağımlılıkları güncelle
+pip install -r requirements.txt --quiet

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş - HantaMed</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="container flex-center">
+        <form class="card" id="loginForm" method="POST" action="/login">
+            <h2>Yönetici Girişi</h2>
+            <input type="text" name="username" placeholder="Kullanıcı Adı" required>
+            <input type="password" name="password" placeholder="Şifre" required>
+            <button type="submit">Giriş Yap</button>
+            <div id="loginError" class="error"></div>
+        </form>
+    </main>
+    <script src="/static/app.js"></script>
+    <script>
+        document.getElementById('loginForm').onsubmit = async (e)=>{
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const res = await fetch('/login', {method:'POST', body:fd});
+            const data = await res.json();
+            if(res.ok) { localStorage.setItem('token', data.access_token); window.location='/admin'; }
+            else document.getElementById('loginError').innerText = "Giriş başarısız.";
+        }
+    </script>
+</body>
+</html>

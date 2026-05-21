@@ -1,0 +1,152 @@
+/* ========================================
+   WCAG 2.1 AA Accessibility Enhancements
+   ======================================== */
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #0F4C75;
+    color: white;
+    padding: 8px 16px;
+    z-index: 100;
+    text-decoration: none;
+}
+.skip-link:focus {
+    top: 0;
+}
+
+/* Focus indicators - visible and high contrast */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[tabindex]:focus {
+    outline: 3px solid #0F4C75 !important;
+    outline-offset: 2px !important;
+}
+
+/* Remove default outline only if custom focus is present */
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible) {
+    outline: none;
+}
+a:focus-visible,
+button:focus-visible {
+    outline: 3px solid #0F4C75;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    body {
+        background: #000 !important;
+        color: #fff !important;
+    }
+    .card, .nav-content, footer {
+        background: #1a1a1a !important;
+        border: 2px solid #fff !important;
+    }
+    a {
+        color: #66b3ff !important;
+    }
+    a:hover, a:focus {
+        color: #fff !important;
+        background: #0F4C75 !important;
+    }
+    button {
+        background: #0F4C75 !important;
+        color: #fff !important;
+        border: 2px solid #fff !important;
+    }
+    .progress-bar {
+        background: #4CAF50 !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Minimum contrast ratios for text */
+.text-secondary {
+    color: #4a5568; /* AA compliant: 4.6:1 on white */
+}
+.error,
+.text-error {
+    color: #c53030; /* AA compliant: 4.8:1 on white */
+}
+.warning,
+.text-warning {
+    color: #975a00; /* AA compliant: 4.5:1 on white */
+}
+.success,
+.text-success {
+    color: #276749; /* AA compliant: 5.2:1 on white */
+}
+
+/* Form validation states with accessible colors */
+input:invalid:not(:placeholder-shown) {
+    border-color: #c53030;
+}
+input:invalid:not(:placeholder-shown):focus {
+    outline-color: #c53030;
+}
+
+/* Disabled state visibility */
+button:disabled,
+[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Ensure interactive elements have minimum touch target */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Print styles for accessibility */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    body {
+        font-size: 12pt;
+        color: #000;
+        background: #fff;
+    }
+    a {
+        text-decoration: underline;
+    }
+    a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.9em;
+    }
+}

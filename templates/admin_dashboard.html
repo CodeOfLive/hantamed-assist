@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - HantaMed</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .log-entry { padding: 4px 0; border-bottom: 1px solid #eee; font-size: 12px; }
+        .log-entry.error { color: #d9534f; }
+        .log-entry.info { color: #0f4c75; }
+        .log-entry.warning { color: #f5a623; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 600; color: #0f4c75; }
+        .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    </style>
+</head>
+<body class="admin-bg">
+    <header style="background: #0f4c75; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+        <h1 style="margin: 0; font-size: 20px;">Yönetim Paneli</h1>
+        <button id="logout" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Çıkış</button>
+    </header>
+    
+    <main class="container" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Toplam Analiz</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-rejected">0</div>
+                <div class="stat-label">Reddedilenler</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-conf">0.00</div>
+                <div class="stat-label">Ort. Confidence</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-accepted">0</div>
+                <div class="stat-label">Başarılı Analizler</div>
+            </div>
+        </div>
+        
+        <!-- Logs Section -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;">Sistem Logları</h2>
+                <button id="refreshLogs" style="background: #0f4c75; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">🔄 Yenile</button>
+            </div>
+            <div id="logs" class="log-box" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                <div style="color: #6b7280; text-align: center; padding: 20px;">Loglar yükleniyor...</div>
+            </div>
+        </div>
+        
+        <!-- Recent Analyses -->
+        <div class="card" style="margin-top: 24px;">
+            <h2 style="margin: 0 0 16px 0;">Son Analizler</h2>
+            <div id="recentAnalyses" style="max-height: 300px; overflow-y: auto;">
+                <div style="color: #6b7280; text-align: center; padding: 20px;">Veri yükleniyor...</div>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        (function() {
+            'use strict';
+            
+            // ✅ Safe timestamp formatter - handles null, 0, invalid dates
+            function formatTimestamp(isoString) {
+                if (!isoString) return '—';
+                try {
+                    var date = new Date(isoString);
+                    // Check for invalid date or Unix epoch 0 (1970-01-01)
+                    if (isNaN(date.getTime()) || date.getFullYear() < 1971) {
+                        return '—';
+                    }
+                    return date.toLocaleString('tr-TR', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } catch (e) {
+                    return '—';
+                }
+            }
+            
+            // ✅ Safe time-only formatter for logs
+            function formatTime(isoString) {
+                if (!isoString) return '—';
+                try {
+                    var date = new Date(isoString);
+                    if (isNaN(date.getTime()) || date.getFullYear() < 1971) {
+                        return '—';
+                    }
+                    return date.toLocaleTimeString('tr-TR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                } catch (e) {
+                    return '—';
+                }
+            }
+            
+            // ✅ Fetch and display history/stats
+            function loadAdminData() {
+                var logsEl = document.getElementById('logs');
+                var recentEl = document.getElementById('recentAnalyses');
+                
+                fetch('/api/history/', { credentials: 'include' })
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        var history = data.history || [];
+                        
+                        // ✅ Update stats with safe null handling
+                        var total = history.length;
+                        var rejected = history.filter(function(h) { return h.status === 'rejected'; }).length;
+                        var accepted = history.filter(function(h) { 
+                            return h.status === 'accepted' || h.status === 'low_confidence'; 
+                        }).length;
+                        var confidences = history
+                            .filter(function(h) { return typeof h.avg_confidence === 'number' && h.avg_confidence > 0; })
+                            .map(function(h) { return h.avg_confidence; });
+                        var avgConf = confidences.length > 0 
+                            ? (confidences.reduce(function(a, b) { return a + b; }, 0) / confidences.length).toFixed(2)
+                            : '0.00';
+                        
+                        var statTotal = document.getElementById('stat-total');
+                        var statRejected = document.getElementById('stat-rejected');
+                        var statAccepted = document.getElementById('stat-accepted');
+                        var statConf = document.getElementById('stat-conf');
+                        
+                        if (statTotal) statTotal.textContent = total;
+                        if (statRejected) statRejected.textContent = rejected;
+                        if (statAccepted) statAccepted.textContent = accepted;
+                        if (statConf) statConf.textContent = avgConf;
+                        
+                        // ✅ Display recent analyses (last 10) with safe timestamp
+                        if (recentEl) {
+                            if (history.length === 0) {
+                                recentEl.innerHTML = '<div style="color: #6b7280; text-align: center; padding: 20px;">Henüz analiz yok.</div>';
+                            } else {
+                                recentEl.innerHTML = history.slice(0, 10).map(function(h) {
+                                    var ts = formatTimestamp(h.upload_timestamp);
+                                    var statusColor = h.status === 'rejected' ? '#d9534f' : 
+                                                     (typeof h.avg_confidence === 'number' && h.avg_confidence >= 0.7) ? '#2e8b57' : '#f5a623';
+                                    var statusText = h.status === 'rejected' ? '🔴 Red' : 
+                                                    (typeof h.avg_confidence === 'number' && h.avg_confidence >= 0.7) ? '🟢 OK' : '🟡 Düşük';
+                                    var conf = typeof h.avg_confidence === 'number' ? (h.avg_confidence * 100).toFixed(0) : '0';
+                                    
+                                    return '<div style="padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 13px;">' +
+                                        '<span>' + ts + '</span>' +
+                                        '<span style="color: ' + statusColor + '">' + statusText + '</span>' +
+                                        '<span>Conf: ' + conf + '%</span>' +
+                                        '</div>';
+                                }).join('');
+                            }
+                        }
+                        
+                        // ✅ Display logs with safe timestamp
+                        if (logsEl) {
+                            if (history.length === 0) {
+                                logsEl.innerHTML = '<div style="color: #6b7280; text-align: center; padding: 20px;">Sistem logu bulunamadı.</div>';
+                            } else {
+                                logsEl.innerHTML = history.slice(0, 20).map(function(h) {
+                                    var timeStr = formatTime(h.upload_timestamp);
+                                    var logClass = h.status === 'rejected' ? 'error' : 
+                                                  (typeof h.avg_confidence === 'number' && h.avg_confidence >= 0.7) ? 'info' : 'warning';
+                                    var statusUpper = (h.status || 'unknown').toUpperCase();
+                                    var hash = (h.image_hash || '').substring(0, 8);
+                                    var conf = typeof h.avg_confidence === 'number' ? (h.avg_confidence * 100).toFixed(0) : '0';
+                                    
+                                    return '<div class="log-entry ' + logClass + '">' +
+                                        '[' + timeStr + '] ' + 
+                                        statusUpper + ' | ' + 
+                                        'Hash: ' + (hash ? hash + '...' : '—') + ' | ' + 
+                                        'Conf: ' + conf + '%' +
+                                        '</div>';
+                                }).join('');
+                                // Auto-scroll to bottom
+                                logsEl.scrollTop = logsEl.scrollHeight;
+                            }
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error('Failed to load admin data:', err);
+                        if (logsEl) logsEl.innerHTML = '<div style="color: #d9534f;">❌ Veri yüklenemedi: ' + (err.message || 'Bilinmeyen hata') + '</div>';
+                        if (recentEl) recentEl.innerHTML = '<div style="color: #d9534f;">❌ Analizler yüklenemedi</div>';
+                    });
+            }
+            
+            // ✅ Load data on page load
+            if (document.addEventListener) {
+                document.addEventListener('DOMContentLoaded', loadAdminData);
+            } else {
+                // Fallback for older browsers
+                loadAdminData();
+            }
+            
+            // ✅ Refresh button handler
+            var refreshBtn = document.getElementById('refreshLogs');
+            if (refreshBtn) {
+                refreshBtn.onclick = function(e) {
+                    if (e) e.preventDefault();
+                    refreshBtn.disabled = true;
+                    refreshBtn.textContent = 'Yükleniyor...';
+                    loadAdminData();
+                    // Re-enable after 2 seconds (or when fetch completes)
+                    setTimeout(function() {
+                        refreshBtn.disabled = false;
+                        refreshBtn.textContent = '🔄 Yenile';
+                    }, 2000);
+                };
+            }
+            
+            // ✅ Logout handler
+            var logoutBtn = document.getElementById('logout');
+            if (logoutBtn) {
+                logoutBtn.onclick = function() {
+                    // Clear localStorage
+                    if (window.localStorage) {
+                        localStorage.removeItem('token');
+                    }
+                    
+                    // Clear cookie via backend (best effort)
+                    if (window.fetch) {
+                        fetch('/admin/logout', {
+                            method: 'POST',
+                            credentials: 'include'
+                        }).catch(function() {});
+                    }
+                    
+                    // Redirect to login
+                    window.location.href = '/login';
+                };
+            }
+            
+        })();
+    </script>
+</body>
+</html>

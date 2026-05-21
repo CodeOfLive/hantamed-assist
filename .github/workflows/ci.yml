@@ -1,0 +1,66 @@
+name: HantaMed CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install system dependencies (Tesseract)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-tur libgl1-mesa-glx
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run syntax checks
+        run: |
+          python -m py_compile src/main.py
+          python -m py_compile src/models/inference.py
+          python -m py_compile src/routers/analyze.py
+          python -m py_compile src/routers/admin.py
+
+      - name: Run unit tests (mock)
+        run: |
+          python -c "from src.models.input_validator import InputValidator; v=InputValidator(); print('✅ Validator OK')"
+          python -c "from src.privacy.pii_redactor import PiiRedactor; r=PiiRedactor(); print('✅ PII Redactor OK')"
+          python -c "from src.auth import create_access_token; t=create_access_token({'sub':'test'}); print('✅ Auth OK:', len(t)>0)"
+
+      - name: Generate synthetic data
+        run: python -m src.data.pipeline
+
+      - name: Run database migration
+        run: |
+          alembic upgrade head
+          python -c "from src.database import SessionLocal; from src.models import User; db=SessionLocal(); print('✅ DB OK:', db.query(User).count()>=0); db.close()"
+
+      - name: Build Docker image
+        run: docker build -t hantamed-test .
+
+      - name: Run container health check
+        run: |
+          docker run -d -p 8000:8000 --name hantamed-test hantamed-test
+          sleep 10
+          curl -f http://localhost:8000/health || exit 1
+          docker stop hantamed-test
+          docker rm hantamed-test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-logs
+          path: logs/

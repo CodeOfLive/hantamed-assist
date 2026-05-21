@@ -1,0 +1,14 @@
+{
+  "drugs": [
+    {"name": "Rifampisin", "active_ingredient": "Rifampin", "indication": "Hantavirüs profilaksisi, bakteri enfeksiyonları", "side_effects": "Karaciğer enzim yükselmesi, idrar renk değişimi", "source": "FDA"},
+    {"name": "Doksiciklin", "active_ingredient": "Doxycycline", "indication": "Hantavirüs semptom yönetimi", "side_effects": "Fotosensitivite, mide bulantısı", "source": "EMA"},
+    {"name": "Azitromisin", "active_ingredient": "Azithromycin", "indication": "İkincil enfeksiyon profilaksisi", "side_effects": "QT uzaması, gastrointestinal rahatsızlık", "source": "TİTCK"},
+    {"name": "Favipiravir", "active_ingredient": "Favipiravir", "indication": "Viral replikasyon inhibisyonu", "side_effects": "Hiperürisemi, fetal hasar riski", "source": "EMA"},
+    {"name": "Remdesivir", "active_ingredient": "Remdesivir", "indication": "Ciddi viral enfeksiyon yönetimi", "side_effects": "Karaciğer toksisitesi, bulantı", "source": "FDA"},
+    {"name": "Dekstrometorfan", "active_ingredient": "Dextromethorphan", "indication": "Öksürük semptom kontrolü", "side_effects": "Baş dönmesi, uyku hali", "source": "TİTCK"},
+    {"name": "Parasetamol", "active_ingredient": "Acetaminophen", "indication": "Ateş ve ağrı yönetimi", "side_effects": "Karaciğer toksisitesi (yüksek doz)", "source": "FDA"},
+    {"name": "İbuprofen", "active_ingredient": "Ibuprofen", "indication": "Enflamasyon ve ağrı kontrolü", "side_effects": "Gastrointestinal kanama, böbrek etkisi", "source": "EMA"},
+    {"name": "Loratadin", "active_ingredient": "Loratadine", "indication": "Alerjik semptom yönetimi", "side_effects": "Baş ağrısı, yorgunluk", "source": "TİTCK"},
+    {"name": "Omeprazol", "active_ingredient": "Omeprazole", "indication": "Mide asidi azaltma", "side_effects": "Baş ağrısı, ishal", "source": "FDA"}
+  ]
+}

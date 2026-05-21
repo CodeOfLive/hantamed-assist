@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: hantamed-assist
+    plan: free
+    env: python
+    region: frankfurt  # EU for GDPR compliance
+    buildCommand: |
+      pip install --no-cache-dir -r requirements.txt
+      python -m src.data.pipeline
+      mkdir -p data/processed logs uploads
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: DATABASE_URL
+        value: sqlite:///./hantamed.db
+      - key: SECRET_KEY
+        generateValue: true  # Render auto-generates secure key
+      - key: CPU_ONLY
+        value: "true"  # Force fallback mode on free tier
+      - key: RENDER
+        value: "true"  # Flag for production middleware
+      - key: LOG_LEVEL
+        value: INFO
+    disk:
+      name: hantamed-data
+      mountPath: /app/data
+      sizeGB: 1
