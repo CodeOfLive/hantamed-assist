@@ -18,47 +18,65 @@ class InputValidator:
 
     def check(self, image_path: str) -> dict:
         try:
+            # Tesseract binary kontrolü
             if not os.path.exists(pytesseract.pytesseract.tesseract_cmd):
                 try:
+                    # System PATH'te tesseract var mı kontrol et
                     pytesseract.get_tesseract_version()
-                except Exception:
+                except Exception as e:
+                    logging.error(f"Tesseract not found: {e}")
                     return {
                         "score": 0.0, 
                         "accepted": False, 
-                        "reason": "Tesseract binary not found."
+                        "reason": "OCR engine not available."
                     }
             
+            # OCR işlemi
             with Image.open(image_path) as img:
-                text = pytesseract.image_to_string(img, lang="tur+eng").lower()
+                # Türkçe + İngilizce OCR
+                text = pytesseract.image_to_string(img, lang="tur+eng").lower().strip()
             
-            logging.info(f"OCR text preview: {text[:200]}...")
+            # Debug log (Render logs'unda görünecek)
+            logging.info(f"OCR text preview: {text[:200] if text else '(empty)'}...")
             
-            if not text or len(text.strip()) < 10:
+            # Boş metin kontrolü
+            if not text or len(text) < 10:
+                logging.warning(f"OCR text too short: {len(text)} chars")
                 return {"score": 0.0, "accepted": False, "reason": "OCR metni boş veya çok kısa."}
             
-            med_matches = len(self.medical_re.findall(text))
-            comm_matches = len(self.comm_re.findall(text))
+            # Keyword matching
+            med_matches = self.medical_re.findall(text)
+            comm_matches = self.comm_re.findall(text)
             
-            logging.info(f"Medical matches: {med_matches}, Commercial matches: {comm_matches}")
+            logging.info(f"Medical matches: {len(med_matches)} -> {med_matches[:5]}")
+            logging.info(f"Commercial matches: {len(comm_matches)} -> {comm_matches[:5]}")
             
-            if comm_matches >= 3 and med_matches == 0:
+            # Ticari belge ise reddet
+            if len(comm_matches) >= 3 and len(med_matches) == 0:
                 return {"score": 0.0, "accepted": False, "reason": "Ticari belge algılandı."}
             
             # Medikal içerik skorlama - test için düşük threshold
-            if med_matches == 0:
-                score = 0.3
-            elif med_matches == 1:
+            if len(med_matches) == 0:
+                score = 0.3  # Sentetik veri için
+            elif len(med_matches) == 1:
                 score = 0.5
-            elif med_matches == 2:
+            elif len(med_matches) == 2:
                 score = 0.7
             else:
-                score = min(0.5 + (med_matches * 0.2), 1.0)
+                score = min(0.5 + (len(med_matches) * 0.2), 1.0)
+            
+            logging.info(f"Validation score: {score} (accepted: {score >= 0.4})")
             
             return {
                 "score": score,
-                "accepted": score >= 0.4,
+                "accepted": score >= 0.4,  # Test için düşük threshold
                 "reason": "Medikal içerik tespit edildi." if score >= 0.4 else "Yetersiz medikal anahtar kelime.",
-                "debug": {"medical_matches": med_matches, "commercial_matches": comm_matches, "ocr_len": len(text)}
+                "debug": {
+                    "medical_matches": len(med_matches),
+                    "commercial_matches": len(comm_matches),
+                    "ocr_len": len(text),
+                    "sample_keywords": med_matches[:3] if med_matches else []
+                }
             }
             
         except Exception as e:
