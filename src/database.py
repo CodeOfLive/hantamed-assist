@@ -1,13 +1,47 @@
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, event
 from sqlalchemy.orm import sessionmaker, declarative_base
-from src.config import DB_URL
+from sqlalchemy.pool import QueuePool
+from src.config import DB_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_RECYCLE
 import os
 
 # SQLAlchemy Base tanımı
 Base = declarative_base()
 
-# Database engine ve session
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+# ✅ PostgreSQL vs SQLite için optimize edilmiş engine ayarları
+def create_database_engine():
+    """Database engine'ı PostgreSQL veya SQLite'a göre yapılandır"""
+    
+    if DB_URL.startswith("postgresql"):
+        # ✅ PostgreSQL production ayarları
+        connect_args = {"sslmode": "require"}
+        
+        # Render environment'ında channel_binding ekle
+        if os.getenv("RENDER") == "true":
+            connect_args["channel_binding"] = "require"
+        
+        return create_engine(
+            DB_URL,
+            poolclass=QueuePool,
+            pool_size=DB_POOL_SIZE,
+            max_overflow=DB_MAX_OVERFLOW,
+            pool_recycle=DB_POOL_RECYCLE,
+            pool_pre_ping=True,  # Connection health check before use
+            connect_args=connect_args,
+            echo=False  # Production'da SQL loglarını kapat
+        )
+    else:
+        # ✅ SQLite fallback (local development)
+        return create_engine(
+            DB_URL, 
+            connect_args={"check_same_thread": False},
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            echo=os.getenv("DEBUG") == "true"
+        )
+
+# Engine ve session factory
+engine = create_database_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
@@ -74,5 +108,6 @@ def init_db():
     except Exception as e:
         db.rollback()
         print(f"⚠️ Admin init error: {e}")
+        raise
     finally:
         db.close()
