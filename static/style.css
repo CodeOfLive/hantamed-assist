@@ -150,3 +150,372 @@ input[type="radio"] {
         font-size: 0.9em;
     }
 }
+
+/* ✅ Geliştirilmiş Drop Zone */
+.file-drop {
+    display: block;
+    border: 3px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+    margin-bottom: 20px;
+}
+
+.file-drop:hover,
+.file-drop.drag-over {
+    border-color: #0F4C75;
+    background: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 76, 117, 0.15);
+}
+
+.drop-content {
+    pointer-events: none;
+}
+
+.drop-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+}
+
+.drop-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0F4C75;
+    margin-bottom: 8px;
+}
+
+.drop-hint {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* ✅ Progress Bar İyileştirmesi */
+.progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 20px 0;
+    transition: width 0.3s ease;
+}
+
+.progress-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #0F4C75, #3282b8);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ✅ Button İyileştirmesi */
+#submitBtn {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #0F4C75;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 16px;
+}
+
+#submitBtn:hover:not(:disabled) {
+    background: #0a3a5c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 76, 117, 0.3);
+}
+
+#submitBtn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ✅ Result Card İyileştirmesi */
+.result-section {
+    animation: slideIn 0.4s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ✅ Mobile Responsive */
+@media (max-width: 640px) {
+    .file-drop {
+        padding: 30px 16px;
+    }
+    
+    .drop-icon {
+        font-size: 36px;
+    }
+    
+    .drop-text {
+        font-size: 14px;
+    }
+    
+    #submitBtn {
+        padding: 14px 20px;
+        font-size: 15px;
+    }
+}
+
+/* ✅ Accessibility: Focus indicators */
+.file-drop:focus-within {
+    outline: 3px solid #0F4C75;
+    outline-offset: 2px;
+}
+
+
+
+/* ========================================
+   Enhanced UI Components - HantaMed Assist
+   ======================================== */
+
+/* ✅ Enhanced Drop Zone */
+.file-drop {
+    display: block;
+    border: 3px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.file-drop:hover,
+.file-drop.drag-over {
+    border-color: #0F4C75;
+    background: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 76, 117, 0.15);
+}
+
+.file-drop:focus-within {
+    outline: 3px solid #0F4C75;
+    outline-offset: 2px;
+}
+
+.drop-content {
+    pointer-events: none;
+}
+
+.drop-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.file-drop:hover .drop-icon,
+.file-drop.drag-over .drop-icon {
+    opacity: 1;
+}
+
+.drop-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0F4C75;
+    margin-bottom: 8px;
+}
+
+.drop-hint {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* ✅ Enhanced Progress Bar */
+.progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 20px 0;
+    transition: width 0.3s ease;
+}
+
+.progress-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #0F4C75, #3282b8);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ✅ Enhanced Button */
+#submitBtn {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #0F4C75;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#submitBtn:hover:not(:disabled) {
+    background: #0a3a5c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 76, 117, 0.3);
+}
+
+#submitBtn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+}
+
+.btn-loading {
+    display: none;
+}
+
+/* ✅ Result Card Animation */
+.result-section {
+    animation: slideIn 0.4s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ✅ Badge Styling */
+#badge {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+/* ✅ Pre-formatted result data */
+#resData {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* ✅ Mobile Responsive */
+@media (max-width: 640px) {
+    .file-drop {
+        padding: 30px 16px;
+    }
+    
+    .drop-icon {
+        font-size: 36px;
+    }
+    
+    .drop-text {
+        font-size: 14px;
+    }
+    
+    .drop-hint {
+        font-size: 12px;
+    }
+    
+    #submitBtn {
+        padding: 14px 20px;
+        font-size: 15px;
+    }
+    
+    .nav-content {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+    }
+    
+    .nav-links {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+    }
+}
+
+/* ✅ High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .file-drop {
+        border-width: 4px;
+    }
+    
+    .file-drop:hover,
+    .file-drop.drag-over {
+        border-color: #000;
+        background: #fff;
+    }
+    
+    #submitBtn {
+        border: 2px solid #000;
+    }
+}
+
+/* ✅ Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ✅ Print Styles */
+@media print {
+    .no-print,
+    nav,
+    footer,
+    .file-drop,
+    #submitBtn {
+        display: none !important;
+    }
+    
+    body {
+        font-size: 12pt;
+        color: #000;
+        background: #fff;
+    }
+    
+    .card {
+        border: 1px solid #000;
+        box-shadow: none;
+    }
+}

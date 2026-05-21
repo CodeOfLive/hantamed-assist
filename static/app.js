@@ -1,6 +1,7 @@
 // static/app.js - HantaMed Assist Production Frontend
 // ✅ Cookie + localStorage dual auth, filepath sanitization, legal compliance
 // ✅ WCAG 2.1 AA: Focus management, ARIA labels, screen reader support
+// ✅ Enhanced UI: Drag-drop visual feedback, loading states, mobile responsive
 // ✅ Syntax validated - no unmatched braces/parentheses
 
 (function() {
@@ -19,7 +20,6 @@
     function announce(message) {
         if (srAnnouncer) {
             srAnnouncer.textContent = '';
-            // Small delay to ensure screen readers pick up the change
             setTimeout(function() {
                 srAnnouncer.textContent = message;
             }, 100);
@@ -36,21 +36,20 @@
         btn.disabled = !shouldEnable;
         btn.setAttribute('aria-disabled', String(!shouldEnable));
         
-        // ✅ WCAG: Announce state change for screen readers
         if (shouldEnable) {
             announce('Form hazır. Analiz Et butonuna basabilirsiniz.');
         }
     }
 
-    // ✅ Drag & Drop Handlers with WCAG support
+    // ✅ Enhanced Drag & Drop Handlers with visual feedback
     if (dropZone && fileInput && policy && btn) {
         ['dragenter', 'dragover'].forEach(function(evt) {
             dropZone.addEventListener(evt, function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                dropZone.classList.add('drag-over');
                 dropZone.style.background = '#e0f2fe';
                 dropZone.style.borderColor = '#0F4C75';
-                // ✅ WCAG: Announce drag state
                 announce('Dosyayı bırakmak için sürüklemeye devam edin.');
             });
         });
@@ -59,8 +58,9 @@
             dropZone.addEventListener(evt, function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                dropZone.classList.remove('drag-over');
                 dropZone.style.background = '';
-                dropZone.style.borderColor = '#cbd5e1';
+                dropZone.style.borderColor = '';
             });
         });
         
@@ -68,10 +68,9 @@
             e.preventDefault();
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
-                const fileName = e.dataTransfer.files[0].name;
+                var fileName = e.dataTransfer.files[0].name;
                 var dropText = dropZone.querySelector('.drop-text');
-                if (dropText) dropText.textContent = '📄 ' + fileName;
-                // ✅ WCAG: Announce file selection
+                if (dropText) dropText.textContent = '✅ ' + fileName;
                 announce('Dosya seçildi: ' + fileName);
                 updateButtonState();
             }
@@ -80,46 +79,47 @@
         fileInput.onchange = function() {
             if (fileInput.files && fileInput.files.length > 0) {
                 var dropText = dropZone.querySelector('.drop-text');
-                if (dropText) dropText.textContent = '📄 ' + fileInput.files[0].name;
-                // ✅ WCAG: Announce file selection via input
+                if (dropText) dropText.textContent = '✅ ' + fileInput.files[0].name;
                 announce('Dosya seçildi: ' + fileInput.files[0].name);
             }
             updateButtonState();
         };
         
         policy.onchange = function() {
-            // ✅ WCAG: Announce policy state
             if (policy.checked) {
                 announce('Veri işleme politikası onaylandı.');
             }
             updateButtonState();
         };
         
-        // ✅ Form Submission with comprehensive error handling
+        // ✅ Enhanced Form Submission with loading state
         form.onsubmit = function(e) {
             e.preventDefault();
             
             if (!fileInput.files || fileInput.files.length === 0) {
                 alert('Lütfen bir dosya seçin.');
-                // ✅ WCAG: Focus file input on error
                 if (fileInput && fileInput.focus) fileInput.focus();
                 return;
             }
             if (!policy.checked) {
                 alert('Veri işleme politikasını onaylamanız gerekmektedir.');
-                // ✅ WCAG: Focus policy checkbox on error
                 if (policy && policy.focus) policy.focus();
                 return;
             }
             
-            var originalBtnText = btn.textContent;
+            var originalBtnText = btn.innerHTML;
             btn.disabled = true;
             btn.setAttribute('aria-disabled', 'true');
-            btn.textContent = 'İşleniyor...';
+            
+            // Show loading state
+            var btnText = btn.querySelector('.btn-text');
+            var btnLoading = btn.querySelector('.btn-loading');
+            if (btnText) btnText.style.display = 'none';
+            if (btnLoading) btnLoading.style.display = 'inline';
+            
             progress.style.width = '0%';
             progress.setAttribute('aria-valuenow', '0');
             
-            // ✅ WCAG: Announce processing start
             announce('Analiz başlatıldı. Lütfen bekleyin.');
             
             var fd = new FormData(form);
@@ -128,14 +128,12 @@
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/analyze');
             
-            // Token handling
             var token = localStorage.getItem('token');
             if (token) {
                 xhr.setRequestHeader('Authorization', 'Bearer ' + token);
             }
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             
-            // Progress
             xhr.upload.onprogress = function(evt) {
                 if (evt.lengthComputable) {
                     var percent = Math.min((evt.loaded / evt.total) * 100, 90);
@@ -144,7 +142,6 @@
                 }
             };
             
-            // Response handler
             xhr.onload = function() {
                 progress.style.width = '100%';
                 progress.setAttribute('aria-valuenow', '100');
@@ -155,7 +152,7 @@
                 } catch (err) {
                     showResult('🔴', 'Hata', 'Sunucu yanıtı okunamadı.', 'Lütfen tekrar deneyin.');
                     announce('Hata: Sunucu yanıtı okunamadı.');
-                    resetForm(originalBtnText);
+                    resetForm(originalBtnText, btnText, btnLoading);
                     return;
                 }
                 
@@ -221,9 +218,8 @@
                 }
                 
                 showResult(badge, title, dataText, summary);
-                // ✅ WCAG: Announce result summary
                 announce(title + '. ' + summary);
-                resetForm(originalBtnText);
+                resetForm(originalBtnText, btnText, btnLoading);
             };
             
             xhr.onerror = function() {
@@ -231,7 +227,7 @@
                 progress.setAttribute('aria-valuenow', '100');
                 showResult('🔴', 'Bağlantı Hatası', 'Sunucuya ulaşılamadı.', 'İnternet bağlantınızı kontrol edin.');
                 announce('Hata: Sunucuya ulaşılamadı.');
-                resetForm(originalBtnText);
+                resetForm(originalBtnText, btnText, btnLoading);
             };
             
             xhr.send(fd);
@@ -268,19 +264,18 @@
         }
         
         rc.classList.remove('hidden');
-        // ✅ WCAG: Move focus to result for keyboard/screen reader users
-        if (rc.focus) {
-            rc.focus();
-        }
+        if (rc.focus) rc.focus();
         if (rc.scrollIntoView) rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // ✅ Helper: Reset form state
-    function resetForm(originalText) {
+    // ✅ Helper: Reset form state with loading state restoration
+    function resetForm(originalHtml, btnText, btnLoading) {
         if (btn) {
             btn.disabled = false;
             btn.setAttribute('aria-disabled', 'false');
-            btn.textContent = originalText || 'Analiz Et';
+            if (originalHtml) btn.innerHTML = originalHtml;
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoading) btnLoading.style.display = 'none';
         }
     }
 
@@ -298,7 +293,6 @@
             
             if (!username || !password) {
                 if (errorEl) errorEl.textContent = 'Kullanıcı adı ve şifre gereklidir.';
-                // ✅ WCAG: Focus first empty field
                 if (!username && usernameInput && usernameInput.focus) usernameInput.focus();
                 else if (passwordInput && passwordInput.focus) passwordInput.focus();
                 return;
@@ -310,7 +304,6 @@
             fd.append('username', username);
             fd.append('password', password);
             
-            // ✅ WCAG: Announce login attempt
             announce('Giriş yapılıyor...');
             
             fetch('/login', {
@@ -322,12 +315,10 @@
             .then(function(data) {
                 if (data.access_token) {
                     localStorage.setItem('token', data.access_token);
-                    // ✅ WCAG: Announce successful login before redirect
                     announce('Giriş başarılı. Yönlendiriliyorsunuz...');
                     window.location.href = '/admin';
                 } else {
                     if (errorEl) errorEl.textContent = data.detail || 'Giriş başarısız.';
-                    // ✅ WCAG: Announce error and focus error element
                     announce('Giriş başarısız: ' + (data.detail || 'Bilinmeyen hata'));
                     if (errorEl && errorEl.focus) errorEl.focus();
                 }
@@ -347,9 +338,7 @@
     var logoutBtn = document.getElementById('logout');
     if (logoutBtn) {
         logoutBtn.onclick = function() {
-            // ✅ WCAG: Announce logout
             announce('Çıkış yapılıyor...');
-            
             localStorage.removeItem('token');
             fetch('/admin/logout', {
                 method: 'POST',
@@ -363,11 +352,9 @@
     if (typeof document.addEventListener === 'function') {
         document.addEventListener('DOMContentLoaded', function() {
             updateButtonState();
-            // ✅ WCAG: Announce page ready for screen readers
             announce('HantaMed Assist yüklendi. Reçete veya rapor yükleyerek analize başlayabilirsiniz.');
         });
     } else {
-        // Fallback for older browsers
         updateButtonState();
     }
     

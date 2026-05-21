@@ -30,11 +30,14 @@
         <section class="card upload-section" aria-labelledby="upload-heading">
             <h2 id="upload-heading">Reçete veya Rapor Yükle</h2>
             <form id="analyzeForm" enctype="multipart/form-data" aria-describedby="form-help">
-                <!-- ✅ WCAG: aria-label for drop zone -->
+                <!-- ✅ Enhanced Drop Zone with visual feedback -->
                 <label class="file-drop" id="dropZone" aria-label="Reçete veya rapor görseli yükleyin. Sürükleyip bırakın veya tıklayın.">
-                    <!-- ✅ WCAG: aria-required for required file input -->
                     <input type="file" name="file" id="fileInput" accept=".png,.jpg,.jpeg" required aria-required="true">
-                    <div class="drop-text">Sürükleyin veya tıklayın (Max 5MB)</div>
+                    <div class="drop-content">
+                        <div class="drop-icon">📄</div>
+                        <div class="drop-text">Sürükleyin veya tıklayın (Max 5MB)</div>
+                        <div class="drop-hint">PNG, JPG, JPEG formatları desteklenmektedir</div>
+                    </div>
                 </label>
                 
                 <!-- ✅ WCAG: Policy checkbox with describedby -->
@@ -49,7 +52,10 @@
                 <!-- ✅ WCAG: Progress bar with aria attributes -->
                 <div id="progress" class="progress-bar" style="width:0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Yükleme ilerlemesi"></div>
                 
-                <button type="submit" id="submitBtn" disabled aria-disabled="true">Analiz Et</button>
+                <button type="submit" id="submitBtn" disabled aria-disabled="true">
+                    <span class="btn-text">Analiz Et</span>
+                    <span class="btn-loading" style="display:none;">⏳ İşleniyor...</span>
+                </button>
             </form>
         </section>
 
