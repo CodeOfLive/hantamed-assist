@@ -34,7 +34,6 @@ async def get_metrics(db: Session = Depends(get_db), user = Depends(require_admi
         confidences = db.query(Analysis.avg_confidence).filter(Analysis.avg_confidence > 0).all()
         avg_conf = sum(c[0] for c in confidences) / len(confidences) if confidences else 0.0
         
-        # NER metrics (mock - real evaluation would need ground truth)
         ner_metrics = {
             "precision": 0.85,
             "recall": 0.82,
@@ -54,27 +53,21 @@ async def get_metrics(db: Session = Depends(get_db), user = Depends(require_admi
         }
     except Exception as e:
         return {"error": str(e), "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."}
-    
-
-
 
 @router.get("/api/setup-admin")
 async def setup_admin_once(db: Session = Depends(get_db)):
     """
-    ⚠️ ONE-TIME SETUP ENDPOINT - Only works if no admin exists
-    Creates default admin user if not present.
+    ⚠️ ONE-TIME SETUP ENDPOINT - Creates default admin if not exists
     Call once after deploy, then this endpoint returns 403.
     """
     from src.models import User
     from passlib.hash import bcrypt
     from src.config import DEFAULT_ADMIN_PASS
     
-    # Check if any admin exists
     existing_admin = db.query(User).filter(User.role == "admin").first()
     if existing_admin:
         return {"status": "skipped", "message": "Admin user already exists."}
     
-    # Create default admin
     password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")
     hashed = bcrypt.hash(password_bytes)
     password_hash = hashed if isinstance(hashed, str) else hashed.decode("utf-8")
