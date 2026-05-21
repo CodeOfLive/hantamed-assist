@@ -36,10 +36,14 @@ timm==1.0.27
 einops==0.8.2
 pytesseract==0.3.13
 
+# PostgreSQL driver
+psycopg2-binary==2.9.9
+
 # === Security ===
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 '@ | Out-File -Append -FilePath "requirements.txt" -Encoding utf8
+
 
 # Bağımlılıkları güncelle
 pip install -r requirements.txt --quiet
