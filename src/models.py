@@ -29,28 +29,36 @@ class Analysis(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # File info (anonymized)
-    filename = Column(String(255), nullable=True)  # Original filename (sanitized)
-    image_hash = Column(String(64), index=True, nullable=False)  # SHA256 hash of content
+    # ✅ File info (anonymized) - BU SATIR KRİTİK!
+    filename = Column(String(255), nullable=True)
+    
+    image_hash = Column(String(64), index=True, nullable=False)
+    file_size_kb = Column(Integer, nullable=True)
+    image_format = Column(String(10), nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    
+    # Timestamps
+    upload_timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     
     # Validation & inference results
-    relevance_score = Column(Float, nullable=False)  # InputValidator score (0.0-1.0)
-    avg_confidence = Column(Float, nullable=True)  # Model confidence average
+    relevance_score = Column(Float, nullable=False)
+    avg_confidence = Column(Float, nullable=True)
     status = Column(String(20), nullable=False)  # accepted/rejected/low_confidence
     
     # Extracted data (anonymized)
-    extracted_entities = Column(Text, nullable=True)  # JSON string of entities
-    qa_summary = Column(Text, nullable=True)  # QA-generated summary
+    extracted_entities = Column(Text, nullable=True)
+    model_version = Column(String(50), nullable=True)
+    qa_summary = Column(Text, nullable=True)
     
     # Performance metrics
-    latency_ms = Column(Integer, nullable=True)  # Inference latency
+    latency_ms = Column(Integer, nullable=True)
     
     # ✅ Admin panel detailed fields (migration 003)
-    upload_timestamp = Column(DateTime, default=datetime.utcnow, index=True)
-    analysis_duration_ms = Column(Integer, nullable=True)  # Total processing time
-    ocr_text_preview = Column(Text, nullable=True)  # First 500 chars of OCR output
-    entities_json = Column(JSON, nullable=True)  # Structured entities dict
-    confidence_score = Column(Float, nullable=True)  # Duplicate for explicit queries
+    analysis_duration_ms = Column(Integer, nullable=True)
+    ocr_text_preview = Column(Text, nullable=True)
+    entities_json = Column(JSON, nullable=True)
+    confidence_score = Column(Float, nullable=True)
     
     # Relationships
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
