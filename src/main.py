@@ -12,7 +12,11 @@ from loguru import logger
 from src.database import init_db
 from src.routers import analyze, history, admin, legal
 import warnings
-
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 # Suppress non-critical warnings
 warnings.filterwarnings("ignore", category=UserWarning, module=".*transformers.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module=".*huggingface_hub.*")
@@ -23,12 +27,11 @@ logger.add("logs/app.log", rotation="10 MB", retention="7 days", level="INFO", b
 logger.add(sys.stdout, level="DEBUG" if os.getenv("DEBUG") else "INFO", format="{time:HH:mm:ss} | {level} | {message}")
 
 from contextlib import asynccontextmanager
-import logging
+
 
 logger = logging.getLogger(__name__)
 
 from contextlib import asynccontextmanager
-import logging
 
 logger = logging.getLogger(__name__)
 

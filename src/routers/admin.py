@@ -6,6 +6,7 @@ from sqlalchemy import func, desc, cast, Date
 from typing import Optional
 from datetime import datetime, timedelta
 from jose import jwt
+import logging
 
 from src.database import get_db
 from src.auth import require_admin
@@ -13,6 +14,10 @@ from src.models import Analysis, User
 from src.evaluation.metrics import MetricsCalculator, MetricResult
 from src.config import SECRET_KEY, ALGORITHM
 
+logging.basicConfig(level=logging.INFO)  # ✅ Render'da logları görmek için
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="templates")
 
@@ -46,51 +51,67 @@ def get_current_user_from_cookie(
 async def admin_dashboard(
     request: Request, 
     db: Session = Depends(get_db), 
-    user: User = Depends(get_current_user_from_cookie)  # ✅ Cookie auth for HTML
+    user: User = Depends(get_current_user_from_cookie)
 ):
     """Admin dashboard with detailed analytics"""
-    total = db.query(func.count(Analysis.id)).scalar() or 0
-    accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
-    rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
-    low_conf = db.query(func.count(Analysis.id)).filter(Analysis.status == "low_confidence").scalar() or 0
-    
-    avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
-    avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
-    
-    recent = db.query(Analysis).order_by(desc(Analysis.upload_timestamp)).limit(20).all()
-    recent_analyses = []
-    for a in recent:
-        recent_analyses.append({
-            "id": a.id,
-            "filename": a.filename,
-            "status": a.status,
-            "confidence": round(a.confidence_score, 3) if a.confidence_score else None,
-            "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else None,
-            "analysis_duration_ms": a.analysis_duration_ms,
-            "ocr_preview": (a.ocr_text_preview[:100] + "...") if a.ocr_text_preview else None,
-            "entities_count": len(a.entities_json) if a.entities_json else 0,
-            "entities_json": a.entities_json,
-            "qa_summary": a.qa_summary
+    try:
+        # ✅ DEBUG: Model columns'ını logla
+        if hasattr(Analysis, '__table__'):
+            cols = [c.name for c in Analysis.__table__.columns]
+            logger.info(f"✅ Analysis columns: {cols}")  # ✅ Bu satır Render Logs'unda görünecek
+            if 'confidence_score' not in cols:
+                logger.error("❌ confidence_score column MISSING in Analysis model!")
+        
+        total = db.query(func.count(Analysis.id)).scalar() or 0
+        accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
+        rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
+        low_conf = db.query(func.count(Analysis.id)).filter(Analysis.status == "low_confidence").scalar() or 0
+        
+        avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
+        avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
+        
+        recent = db.query(Analysis).order_by(desc(Analysis.upload_timestamp)).limit(20).all()
+        recent_analyses = []
+        for a in recent:
+            recent_analyses.append({
+                "id": a.id,
+                "filename": a.filename,
+                "status": a.status,
+                "confidence": round(a.confidence_score, 3) if a.confidence_score else None,
+                "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else None,
+                "analysis_duration_ms": a.analysis_duration_ms,
+                "ocr_preview": (a.ocr_text_preview[:100] + "...") if a.ocr_text_preview else None,
+                "entities_count": len(a.entities_json) if a.entities_json else 0,
+                "entities_json": a.entities_json,
+                "qa_summary": a.qa_summary
+            })
+        
+        db_analytics = {
+            "total": total, "accepted": accepted, "rejected": rejected,
+            "low_confidence": low_conf, "avg_confidence": avg_conf
+        }
+        ner_metrics = MetricsCalculator.calculate_ner_metrics([])
+        
+        return templates.TemplateResponse("admin_dashboard.html", {
+            "request": request,
+            "stats": db_analytics,
+            "metrics": {
+                "precision": ner_metrics["precision"],
+                "recall": ner_metrics["recall"],
+                "f1": ner_metrics["f1"],
+                "exact_match": ner_metrics["exact_match"]
+            },
+            "recent_analyses": recent_analyses,
+            "model_version": "florence-2-base-fallback"
         })
-    
-    db_analytics = {
-        "total": total, "accepted": accepted, "rejected": rejected,
-        "low_confidence": low_conf, "avg_confidence": avg_conf
-    }
-    ner_metrics = MetricsCalculator.calculate_ner_metrics([])
-    
-    return templates.TemplateResponse("admin_dashboard.html", {
-        "request": request,
-        "stats": db_analytics,
-        "metrics": {
-            "precision": ner_metrics["precision"],
-            "recall": ner_metrics["recall"],
-            "f1": ner_metrics["f1"],
-            "exact_match": ner_metrics["exact_match"]
-        },
-        "recent_analyses": recent_analyses,
-        "model_version": "florence-2-base-fallback"
-    })
+        
+    except AttributeError as e:
+        # ✅ Gerçek AttributeError'u logla ve yeniden fırlat
+        logger.error(f"❌ AttributeError in admin_dashboard: {e}", exc_info=True)
+        raise
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in admin_dashboard: {e}", exc_info=True)
+        raise
 
 
 @router.get("/api/analytics")
