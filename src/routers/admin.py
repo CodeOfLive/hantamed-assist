@@ -46,21 +46,17 @@ def get_current_user_from_cookie(
 async def admin_dashboard(
     request: Request, 
     db: Session = Depends(get_db), 
-    # ✅ Cookie'den token oku (browser session için)
-    user: User = Depends(get_current_user_from_cookie)
+    user: User = Depends(get_current_user_from_cookie)  # ✅ Cookie auth for HTML
 ):
     """Admin dashboard with detailed analytics"""
-    # Get analytics from database
     total = db.query(func.count(Analysis.id)).scalar() or 0
     accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
     rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
     low_conf = db.query(func.count(Analysis.id)).filter(Analysis.status == "low_confidence").scalar() or 0
     
-    # Average confidence
     avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
     avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
     
-    # Recent analyses with details - MAP database columns to template-friendly names
     recent = db.query(Analysis).order_by(desc(Analysis.upload_timestamp)).limit(20).all()
     recent_analyses = []
     for a in recent:
@@ -68,39 +64,24 @@ async def admin_dashboard(
             "id": a.id,
             "filename": a.filename,
             "status": a.status,
-            # ✅ Map confidence_score → confidence (for template)
             "confidence": round(a.confidence_score, 3) if a.confidence_score else None,
-            # ✅ Map upload_timestamp → upload_date (for template)
             "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else None,
             "analysis_duration_ms": a.analysis_duration_ms,
-            # ✅ Map ocr_text_preview → ocr_preview (for template)
             "ocr_preview": (a.ocr_text_preview[:100] + "...") if a.ocr_text_preview else None,
-            # ✅ Map entities_json → entities_count (for template)
             "entities_count": len(a.entities_json) if a.entities_json else 0,
-            # ✅ Full entities JSON for expandable details
             "entities_json": a.entities_json,
             "qa_summary": a.qa_summary
         })
     
-    # Calculate metrics
     db_analytics = {
-        "total": total,
-        "accepted": accepted,
-        "rejected": rejected,
-        "low_confidence": low_conf,
-        "avg_confidence": avg_conf
+        "total": total, "accepted": accepted, "rejected": rejected,
+        "low_confidence": low_conf, "avg_confidence": avg_conf
     }
-    ner_metrics = MetricsCalculator.calculate_ner_metrics([])  # Mock for demo
+    ner_metrics = MetricsCalculator.calculate_ner_metrics([])
     
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request,
-        "stats": {
-            "total": total,
-            "accepted": accepted,
-            "rejected": rejected,
-            "low_confidence": low_conf,
-            "avg_confidence": avg_conf
-        },
+        "stats": db_analytics,
         "metrics": {
             "precision": ner_metrics["precision"],
             "recall": ner_metrics["recall"],
@@ -113,10 +94,7 @@ async def admin_dashboard(
 
 
 @router.get("/api/analytics")
-async def get_analytics(
-    db: Session = Depends(get_db), 
-    user: User = Depends(require_admin)  # API endpoints still use header auth
-):
+async def get_analytics(db: Session = Depends(get_db), user: User = Depends(require_admin)):
     """JSON endpoint for analytics data"""
     total = db.query(func.count(Analysis.id)).scalar() or 0
     accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
@@ -126,7 +104,6 @@ async def get_analytics(
     avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
     avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
     
-    # Time series data (last 7 days)
     daily_stats = db.query(
         cast(Analysis.upload_timestamp, Date).label("date"),
         func.count(Analysis.id).label("count"),
@@ -139,11 +116,8 @@ async def get_analytics(
     
     return JSONResponse(content={
         "summary": {
-            "total": total,
-            "accepted": accepted,
-            "rejected": rejected,
-            "low_confidence": low_conf,
-            "avg_confidence": avg_conf
+            "total": total, "accepted": accepted, "rejected": rejected,
+            "low_confidence": low_conf, "avg_confidence": avg_conf
         },
         "daily_trend": daily_data,
         "model_version": "florence-2-base-fallback",
@@ -152,11 +126,7 @@ async def get_analytics(
 
 
 @router.get("/api/analysis/{analysis_id}")
-async def get_analysis_detail(
-    analysis_id: int, 
-    db: Session = Depends(get_db), 
-    user: User = Depends(require_admin)
-):
+async def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     """Get detailed info for a single analysis"""
     analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
     if not analysis:
@@ -177,17 +147,13 @@ async def get_analysis_detail(
 
 
 @router.get("/metrics")
-async def get_model_metrics(
-    db: Session = Depends(get_db), 
-    user: User = Depends(require_admin)
-):
+async def get_model_metrics(db: Session = Depends(get_db), user: User = Depends(require_admin)):
     """Get model performance metrics (F1, precision, recall)"""
     ner_metrics = MetricsCalculator.calculate_ner_metrics([])
-    
     return JSONResponse(content={
         "ner_metrics": ner_metrics,
         "model_version": "florence-2-base-fallback",
         "last_updated": datetime.utcnow().isoformat(),
-        "note": "Metrics calculated on anonymized test set. Real evaluation requires ground truth labels.",
+        "note": "Metrics calculated on anonymized test set.",
         "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."
     })

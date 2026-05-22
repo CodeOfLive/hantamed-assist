@@ -30,7 +30,7 @@ class Analysis(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # ✅✅✅ KRİTİK: filename KOLONU BURADA, İLKLERDEN BİRİ OLARAK TANIMLANMALI ✅✅✅
+    # ✅✅✅ filename KOLONU - KRİTİK KONUM ✅✅✅
     filename = Column(String(255), nullable=True)
     
     # Other file metadata
@@ -46,7 +46,7 @@ class Analysis(Base):
     # Validation & inference results
     relevance_score = Column(Float, nullable=False)
     avg_confidence = Column(Float, nullable=True)
-    status = Column(String(20), nullable=False)  # accepted/rejected/low_confidence
+    status = Column(String(20), nullable=False)
     
     # Extracted data (anonymized)
     extracted_entities = Column(Text, nullable=True)
@@ -56,7 +56,7 @@ class Analysis(Base):
     # Performance metrics
     latency_ms = Column(Integer, nullable=True)
     
-    # Admin panel detailed fields (migration 003)
+    # Admin panel detailed fields
     analysis_duration_ms = Column(Integer, nullable=True)
     ocr_text_preview = Column(Text, nullable=True)
     entities_json = Column(JSON, nullable=True)
@@ -75,7 +75,7 @@ class SystemLog(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
-    level = Column(String(10), nullable=False)  # INFO/WARNING/ERROR
-    module = Column(String(50), nullable=True)  # e.g., "validator", "inference"
+    level = Column(String(10), nullable=False)
+    module = Column(String(50), nullable=True)
     message = Column(Text, nullable=False)
-    metadata_json = Column(JSON, nullable=True)  # Structured context (anonymized)
+    metadata_json = Column(JSON, nullable=True)
