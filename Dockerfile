@@ -26,18 +26,20 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# ✅ Set environment variables for Render compatibility
+# ... existing content ...
+
+# ✅ Environment variables for Render compatibility
 ENV TRANSFORMERS_CACHE=/tmp/huggingface_cache
 ENV TESSERACT_CMD=/usr/bin/tesseract
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Expose port
+# ✅ Explicitly expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# ✅ Health check for Render
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# ✅ Start command with explicit host and port binding
+# ✅ Start command - MUST bind to 0.0.0.0:8000 for Render
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

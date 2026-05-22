@@ -22,23 +22,29 @@ logger.remove()
 logger.add("logs/app.log", rotation="10 MB", retention="7 days", level="INFO", backtrace=True, diagnose=True)
 logger.add(sys.stdout, level="DEBUG" if os.getenv("DEBUG") else "INFO", format="{time:HH:mm:ss} | {level} | {message}")
 
+from contextlib import asynccontextmanager
+import logging
+
+logger = logging.getLogger(__name__)
+
+from contextlib import asynccontextmanager
+import logging
+
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager with warmup"""
-    os.makedirs("logs", exist_ok=True)
-    os.makedirs("uploads", exist_ok=True)
-    os.makedirs("data/processed", exist_ok=True)
-    
+    """Optimized lifespan handler for Render"""
     try:
-        init_db()
+        logger.info("Initializing database...")
+        init_db()  # Fast: creates tables if not exist
         logger.info("Database initialized.")
-        logger.info("Application startup complete.")
+        yield
     except Exception as e:
-        logger.error(f"Startup failed: {e}")
+        logger.error(f"Startup failed: {e}", exc_info=True)
         raise
-    yield
-    logger.info("Application shutdown complete.")
-
+    finally:
+        logger.info("Shutting down...")
 app = FastAPI(
     title="HantaMed Assist", 
     version="1.0.0",
