@@ -14,7 +14,7 @@ DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 # Security & Auth
 SECRET_KEY = os.getenv("SECRET_KEY", "HantaMed-Secure-Secret-Key-2024-Production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 DEFAULT_ADMIN_PASS = os.getenv("DEFAULT_ADMIN_PASS", "HantaMed2024!")
 
 # ML Model Config
