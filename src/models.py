@@ -30,39 +30,37 @@ class Analysis(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # ✅✅✅ filename KOLONU - KRİTİK KONUM ✅✅✅
+    # ✅ File info
     filename = Column(String(255), nullable=True)
-    
-    # Other file metadata
     image_hash = Column(String(64), index=True, nullable=False)
     file_size_kb = Column(Integer, nullable=True)
     image_format = Column(String(10), nullable=True)
     width = Column(Integer, nullable=True)
     height = Column(Integer, nullable=True)
     
-    # Timestamps
+    # ✅ Timestamps
     upload_timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     
-    # Validation & inference results
+    # ✅ Validation & inference results
     relevance_score = Column(Float, nullable=False)
     avg_confidence = Column(Float, nullable=True)
     status = Column(String(20), nullable=False)
     
-    # Extracted data (anonymized)
+    # ✅ Extracted data (anonymized)
     extracted_entities = Column(Text, nullable=True)
     model_version = Column(String(50), nullable=True)
     qa_summary = Column(Text, nullable=True)
     
-    # Performance metrics
+    # ✅ Performance metrics
     latency_ms = Column(Integer, nullable=True)
     
-    # Admin panel detailed fields
+    # ✅ Admin panel detailed fields (migration 003)
     analysis_duration_ms = Column(Integer, nullable=True)
     ocr_text_preview = Column(Text, nullable=True)
     entities_json = Column(JSON, nullable=True)
-    confidence_score = Column(Float, nullable=True)
+    confidence_score = Column(Float, nullable=True)  # ✅✅✅ BU SATIR KRİTİK ✅✅✅
     
-    # Relationships
+    # ✅ Relationships
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     user = relationship("User", back_populates="analyses")
     
