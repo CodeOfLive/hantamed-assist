@@ -8,6 +8,7 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class User(Base):
     """Admin user model for authentication"""
     __tablename__ = "users"
@@ -15,13 +16,13 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="admin", nullable=False)  # admin, operator, viewer
+    role = Column(String(20), default="admin", nullable=False)
     password_change_required = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
     
-    # Relationships
     analyses = relationship("Analysis", back_populates="user", lazy="select")
+
 
 class Analysis(Base):
     """Analysis log entry - anonymized, no PII"""
@@ -29,9 +30,10 @@ class Analysis(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # ✅ File info (anonymized) - BU SATIR KRİTİK!
+    # ✅✅✅ KRİTİK: filename KOLONU BURADA, İLKLERDEN BİRİ OLARAK TANIMLANMALI ✅✅✅
     filename = Column(String(255), nullable=True)
     
+    # Other file metadata
     image_hash = Column(String(64), index=True, nullable=False)
     file_size_kb = Column(Integer, nullable=True)
     image_format = Column(String(10), nullable=True)
@@ -54,7 +56,7 @@ class Analysis(Base):
     # Performance metrics
     latency_ms = Column(Integer, nullable=True)
     
-    # ✅ Admin panel detailed fields (migration 003)
+    # Admin panel detailed fields (migration 003)
     analysis_duration_ms = Column(Integer, nullable=True)
     ocr_text_preview = Column(Text, nullable=True)
     entities_json = Column(JSON, nullable=True)
@@ -65,6 +67,7 @@ class Analysis(Base):
     user = relationship("User", back_populates="analyses")
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class SystemLog(Base):
     """System audit log - for debugging and compliance"""
