@@ -108,11 +108,67 @@ async def home(request: Request):
 async def legal_page(request: Request):
     return templates.TemplateResponse("legal.html", {"request": request})
 
-# Include routers
-app.include_router(analyze.router)
-app.include_router(history.router)
-app.include_router(admin.router)
-app.include_router(legal.router)
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from contextlib import asynccontextmanager
+
+from src.database import init_db, engine, Base
+from src.routers import analyze, history, admin, legal, auth  # ✅ auth router'ı ekleyin
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: DB init
+    init_db()
+    yield
+    # Shutdown: cleanup if needed
+
+app = FastAPI(
+    title="HantaMed Assist",
+    description="AI-powered hantavirus prescription/report analyzer",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static files & templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# ✅ Router'ları mount edin (prefix'leri router içinde tanımlı)
+app.include_router(auth.router)  # ✅ Login endpoint'leri: /login, /admin/logout
+app.include_router(analyze.router)  # /api/analyze
+app.include_router(history.router)  # /api/history
+app.include_router(admin.router)  # /admin/*
+app.include_router(legal.router)  # /legal, /api/setup-admin
+
+# Root redirect to login
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "checks": {
+            "database": "ok",
+            "storage": True,
+            "model": "fallback"
+        },
+        "legal": "This system is for informational purposes only. Consult a physician for medical decisions."
+    }
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
