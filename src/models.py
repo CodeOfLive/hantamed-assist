@@ -55,3 +55,5 @@ class SystemLog(Base):
     module = Column(String(50), nullable=True)
     message = Column(Text, nullable=False)
     metadata_json = Column(JSON, nullable=True)
+
+# CACHE_BUST: 2024-05-23-deploy-fix  ← Bu satır Docker'ın dosyayı "değişmiş" görmesini sağlar
