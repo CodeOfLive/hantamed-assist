@@ -37,3 +37,6 @@ loguru==0.7.2
 
 # bcrypt version fix for passlib compatibility
 bcrypt==4.0.1
+# ... existing packages ...
+pydantic>=2.0.0
+pydantic-settings>=2.0.0  # ✅ BU SATIRI EKLEYİN
