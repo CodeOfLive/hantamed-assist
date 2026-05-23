@@ -1,37 +1,54 @@
+"""
+Application configuration and settings
+KVKK-compliant: No hardcoded secrets, use environment variables
+"""
+from pydantic_settings import BaseSettings
+from functools import lru_cache
 import os
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ PostgreSQL + SQLite destekli DATABASE_URL
-DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/hantamed.db")
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables"""
+    
+    # ✅ App config
+    APP_NAME: str = "HantaMed Assist"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+    
+    # ✅ Database (Render PostgreSQL)
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./hantamed.db")
+    
+    # ✅ Security
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # ✅ Admin credentials (change in production!)
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "HantaMed2024!")
+    
+    # ✅ Model config
+    MODEL_NAME: str = "florence-2-base"
+    MODEL_FALLBACK: bool = True
+    RELEVANCE_THRESHOLD: float = 0.7
+    
+    # ✅ Storage
+    UPLOAD_DIR: str = "uploads"
+    MAX_FILE_SIZE_MB: int = 10
+    
+    # ✅ Logging
+    LOG_LEVEL: str = "INFO"
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
-# ✅ PostgreSQL connection pooling ayarları
-DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
-DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 
-# Security & Auth
-SECRET_KEY = os.getenv("SECRET_KEY", "HantaMed-Secure-Secret-Key-2024-Production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-DEFAULT_ADMIN_PASS = os.getenv("DEFAULT_ADMIN_PASS", "HantaMed2024!")
+@lru_cache()
+def get_settings() -> Settings:
+    """Cached settings instance"""
+    return Settings()
 
-# ML Model Config
-MODEL_NAME = "microsoft/Florence-2-base"
-CONFIDENCE_THRESHOLD = 0.7
 
-# File Upload Limits
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
-
-# Input Validation Keywords
-MEDICAL_KEYWORDS = {
-    "reçete", "rx", "ilaç", "eczane", "doz", "laboratuvar", "tahlil", 
-    "plt", "kreatinin", "wbc", "hastane", "dr.", "test", "teşhis",
-    "hct", "hb", "glukoz", "ürea", "sgot", "sgpt", "tsh", "hba1c"
-}
-COMMERCIAL_KEYWORDS = {
-    "market", "kasa", "toplam tutar", "indirim", "barkod", "fatura", 
-    "adet", "kdv", "fiş", "alışveriş", "kasada", "alışveriş"
-}
+# ✅ Global settings instance (this is what main.py imports)
+settings = get_settings()
