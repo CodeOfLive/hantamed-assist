@@ -34,11 +34,13 @@ class Settings(BaseSettings):
     MODEL_NAME: str = "florence-2-base"
     MODEL_FALLBACK: bool = True
     RELEVANCE_THRESHOLD: float = 0.7
-    CONFIDENCE_THRESHOLD: float = 0.5  # ✅ BU SATIRI EKLEYİN
+    CONFIDENCE_THRESHOLD: float = 0.5
     
     # ✅ Storage
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 10
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB in bytes (for analyze.py)
+    ALLOWED_EXTENSIONS: set = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}  # for analyze.py
     
     # ✅ Logging
     LOG_LEVEL: str = "INFO"
@@ -83,7 +85,7 @@ def get_settings() -> Settings:
 # ✅ Global settings instance (this is what main.py imports)
 settings = get_settings()
 
-# ✅ Legacy imports for backward compatibility (auth.py, database.py, input_validator.py, inference.py use these)
+# ✅ Legacy imports for backward compatibility (auth.py, database.py, input_validator.py, inference.py, analyze.py use these)
 # Database
 DB_URL = settings.DATABASE_URL
 DB_POOL_SIZE = settings.DB_POOL_SIZE
@@ -103,11 +105,13 @@ ADMIN_PASSWORD = settings.ADMIN_PASSWORD
 MODEL_NAME = settings.MODEL_NAME
 MODEL_FALLBACK = settings.MODEL_FALLBACK
 RELEVANCE_THRESHOLD = settings.RELEVANCE_THRESHOLD
-CONFIDENCE_THRESHOLD = settings.CONFIDENCE_THRESHOLD  # ✅ BU SATIRI EKLEYİN
+CONFIDENCE_THRESHOLD = settings.CONFIDENCE_THRESHOLD
 
 # Storage
 UPLOAD_DIR = settings.UPLOAD_DIR
 MAX_FILE_SIZE_MB = settings.MAX_FILE_SIZE_MB
+MAX_FILE_SIZE = settings.MAX_FILE_SIZE  # for analyze.py
+ALLOWED_EXTENSIONS = settings.ALLOWED_EXTENSIONS  # for analyze.py
 
 # Logging
 LOG_LEVEL = settings.LOG_LEVEL
