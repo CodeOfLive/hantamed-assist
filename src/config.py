@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     
     # ✅ Database (Render PostgreSQL)
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./hantamed.db")
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "3600"))
     
     # ✅ Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
@@ -52,3 +55,9 @@ def get_settings() -> Settings:
 
 # ✅ Global settings instance (this is what main.py imports)
 settings = get_settings()
+
+# ✅ Legacy imports for backward compatibility (database.py uses these)
+DB_URL = settings.DATABASE_URL
+DB_POOL_SIZE = settings.DB_POOL_SIZE
+DB_MAX_OVERFLOW = settings.DB_MAX_OVERFLOW
+DB_POOL_RECYCLE = settings.DB_POOL_RECYCLE
