@@ -56,8 +56,30 @@ def get_settings() -> Settings:
 # ✅ Global settings instance (this is what main.py imports)
 settings = get_settings()
 
-# ✅ Legacy imports for backward compatibility (database.py uses these)
+# ✅ Legacy imports for backward compatibility (auth.py, database.py use these)
+# Database
 DB_URL = settings.DATABASE_URL
 DB_POOL_SIZE = settings.DB_POOL_SIZE
 DB_MAX_OVERFLOW = settings.DB_MAX_OVERFLOW
 DB_POOL_RECYCLE = settings.DB_POOL_RECYCLE
+
+# Security
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+# Admin
+ADMIN_USERNAME = settings.ADMIN_USERNAME
+ADMIN_PASSWORD = settings.ADMIN_PASSWORD
+
+# Model
+MODEL_NAME = settings.MODEL_NAME
+MODEL_FALLBACK = settings.MODEL_FALLBACK
+RELEVANCE_THRESHOLD = settings.RELEVANCE_THRESHOLD
+
+# Storage
+UPLOAD_DIR = settings.UPLOAD_DIR
+MAX_FILE_SIZE_MB = settings.MAX_FILE_SIZE_MB
+
+# Logging
+LOG_LEVEL = settings.LOG_LEVEL
