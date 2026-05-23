@@ -42,6 +42,32 @@ class Settings(BaseSettings):
     # ✅ Logging
     LOG_LEVEL: str = "INFO"
     
+    # ✅ Medical/Commercial keywords for input validation
+    MEDICAL_KEYWORDS: list = [
+        "reçete", "ilaç", "doz", "mg", "ml", "tablet", "kapsül", 
+        "enjektör", "flakon", "ampul", "merhem", "krem", "solüsyon",
+        "prospektüs", "etken madde", "kontrendikasyon", "yan etki",
+        "dozaj", "uygulama", "saklama", "son kullanma", "parti no",
+        "ruhsat no", "üretici", "ithalatçı", "eczane", "hekim",
+        "hasta", "tanı", "tedavi", "profilaksi", "antibiyotik",
+        "analjezik", "antipiretik", "antienflamatuar", "antihistaminik",
+        "antidepresan", "antipsikotik", "antikonvülzan", "antikoagülan",
+        "antihipertansif", "antidiyabetik", "antiviral", "antifungal",
+        "antiparaziter", "immünsupresif", "immünmodülatör", "hormon",
+        "vitamin", "mineral", "takviye", "probiyotik", "prebiyotik"
+    ]
+    
+    COMMERCIAL_KEYWORDS: list = [
+        "fiyat", "ücret", "ödeme", "indirim", "kampanya", "promosyon",
+        "satış", "alım", "ticari", "reklam", "pazarlama", "marka",
+        "distribütör", "bayi", "toptan", "perakende", "stok", "envanter",
+        "fatura", "irsaliye", "sipariş", "teslimat", "kargo", "iade",
+        "garanti", "servis", "müşteri", "müşteri hizmetleri", "destek",
+        "şikayet", "öneri", "memnuniyet", "kalite", "standart", "sertifika",
+        "belge", "onay", "ruhsat", "izin", "lisans", "telif", "patent",
+        "ticari sır", "gizlilik", "sözleşme", "anlaşma", "protokol"
+    ]
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -56,7 +82,7 @@ def get_settings() -> Settings:
 # ✅ Global settings instance (this is what main.py imports)
 settings = get_settings()
 
-# ✅ Legacy imports for backward compatibility (auth.py, database.py use these)
+# ✅ Legacy imports for backward compatibility (auth.py, database.py, input_validator.py use these)
 # Database
 DB_URL = settings.DATABASE_URL
 DB_POOL_SIZE = settings.DB_POOL_SIZE
@@ -83,3 +109,7 @@ MAX_FILE_SIZE_MB = settings.MAX_FILE_SIZE_MB
 
 # Logging
 LOG_LEVEL = settings.LOG_LEVEL
+
+# Keywords for input validation
+MEDICAL_KEYWORDS = settings.MEDICAL_KEYWORDS
+COMMERCIAL_KEYWORDS = settings.COMMERCIAL_KEYWORDS
