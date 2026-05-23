@@ -37,25 +37,40 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Optimized lifespan handler for Render"""
+    """Application lifespan handler"""
+    import logging
+    from sqlalchemy import text  # ✅ Raw SQL için
+    logger = logging.getLogger(__name__)
+    
+    # ✅ Startup: Database ve Model test et
     try:
-        logger.info("Initializing database...")
-        init_db()  # Fast: creates tables if not exist
-        logger.info("Database initialized.")
-        yield
+        from src.database import engine, SessionLocal
+        from src.models import Analysis, Base
+        
+        # Database connection test
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection: OK")
+        
+        # Model columns test
+        if hasattr(Analysis, '__table__'):
+            cols = [c.name for c in Analysis.__table__.columns]
+            logger.info(f"✅ Analysis columns: {cols}")
+            if 'confidence_score' not in cols:
+                logger.error("❌ confidence_score column MISSING in Analysis model!")
+            if 'filename' not in cols:
+                logger.error("❌ filename column MISSING in Analysis model!")
+        
+        logger.info("✅ Application startup checks complete")
+        
     except Exception as e:
-        logger.error(f"Startup failed: {e}", exc_info=True)
+        logger.error(f"❌ Startup error: {e}", exc_info=True)
         raise
-    finally:
-        logger.info("Shutting down...")
-app = FastAPI(
-    title="HantaMed Assist", 
-    version="1.0.0",
-    description="Hantavirüs hastaları için bilgilendirme sistemi",
-    lifespan=lifespan,
-    docs_url=None,
-    redoc_url=None
-)
+    
+    yield  # Application running
+    
+    # ✅ Shutdown: Cleanup
+    logger.info("🛑 Application shutting down...")
 
 # Middleware
 app.add_middleware(
