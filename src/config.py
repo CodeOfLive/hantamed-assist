@@ -85,7 +85,11 @@ def get_settings() -> Settings:
 # ✅ Global settings instance (this is what main.py imports)
 settings = get_settings()
 
-# ✅ Legacy imports for backward compatibility (auth.py, database.py, input_validator.py, inference.py, analyze.py use these)
+# ✅ Legacy imports for backward compatibility (auth.py, database.py, input_validator.py, inference.py, analyze.py, health.py use these)
+# App
+APP_NAME = settings.APP_NAME
+APP_VERSION = settings.APP_VERSION  # ✅ BU SATIRI EKLEYİN (health.py için)
+
 # Database
 DB_URL = settings.DATABASE_URL
 DB_POOL_SIZE = settings.DB_POOL_SIZE
