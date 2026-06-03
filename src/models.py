@@ -16,20 +16,20 @@ class Analysis(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # ✅ File info (REQUIRED for admin panel)
-    filename = Column(String(255), nullable=True)  # ✅ BU SATIRI EKLEYİN
+    filename = Column(String(255), nullable=True)  # ✅ EKLENDİ
     image_hash = Column(String(64), unique=True, index=True, nullable=False)
-    file_size_kb = Column(Float, nullable=False)
-    image_format = Column(String(10), nullable=False)
-    width = Column(Integer, nullable=False)
-    height = Column(Integer, nullable=False)
+    file_size_kb = Column(Float, nullable=True)
+    image_format = Column(String(10), nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
     
     # ✅ Timestamps
-    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
     
     # ✅ Analysis results
     relevance_score = Column(Float, nullable=True)
     avg_confidence = Column(Float, nullable=True)
-    confidence_score = Column(Float, nullable=True)  # ✅ BU SATIRI EKLEYİN
+    confidence_score = Column(Float, nullable=True)  # ✅ EKLENDİ
     status = Column(String(50), default="pending", nullable=False)
     extracted_entities = Column(JSON, nullable=True)
     model_version = Column(String(50), nullable=True)
@@ -41,8 +41,8 @@ class Analysis(Base):
     ocr_text_preview = Column(Text, nullable=True)
     entities_json = Column(JSON, nullable=True)
     
-    # ✅ User tracking (KVKK compliant - anonymized)
-    user_id = Column(String(64), nullable=True)  # Hashed user ID, not personal data
+    # ✅ User tracking
+    user_id = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     def __repr__(self):

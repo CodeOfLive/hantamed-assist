@@ -50,18 +50,42 @@ def get_current_user_from_cookie(
 @router.get("/", response_class=HTMLResponse)
 async def admin_dashboard(
     request: Request, 
-    db: Session = Depends(get_db), 
-    user: User = Depends(get_current_user_from_cookie)
+    db: Session = Depends(get_db),
+    access_token: Optional[str] = Cookie(None)  # ✅ Cookie'den token al
 ):
     """Admin dashboard with detailed analytics"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # ✅ Token kontrolü (cookie veya header)
+    if not access_token:
+        # Cookie yoksa login sayfasına yönlendir
+        logger.warning("⚠️ No access_token cookie found, redirecting to login")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # ✅ Token decode
     try:
-        # ✅ DEBUG: Model columns'ını logla
-        if hasattr(Analysis, '__table__'):
-            cols = [c.name for c in Analysis.__table__.columns]
-            logger.info(f"✅ Analysis columns: {cols}")  # ✅ Bu satır Render Logs'unda görünecek
-            if 'confidence_score' not in cols:
-                logger.error("❌ confidence_score column MISSING in Analysis model!")
-        
+        from jose import jwt
+        from src.config import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url="/login", status_code=303)
+    except Exception as e:
+        logger.error(f"❌ Token decode error: {e}")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # ✅ Kullanıcı kontrolü
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # ✅ Dashboard içeriği
+    try:
         total = db.query(func.count(Analysis.id)).scalar() or 0
         accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
         rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
@@ -75,7 +99,7 @@ async def admin_dashboard(
         for a in recent:
             recent_analyses.append({
                 "id": a.id,
-                "filename": a.filename,
+                "filename": a.filename or "unknown",
                 "status": a.status,
                 "confidence": round(a.confidence_score, 3) if a.confidence_score else None,
                 "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else None,
@@ -86,15 +110,18 @@ async def admin_dashboard(
                 "qa_summary": a.qa_summary
             })
         
-        db_analytics = {
-            "total": total, "accepted": accepted, "rejected": rejected,
-            "low_confidence": low_conf, "avg_confidence": avg_conf
-        }
+        from src.evaluation.metrics import MetricsCalculator
         ner_metrics = MetricsCalculator.calculate_ner_metrics([])
         
         return templates.TemplateResponse("admin_dashboard.html", {
             "request": request,
-            "stats": db_analytics,
+            "stats": {
+                "total": total,
+                "accepted": accepted,
+                "rejected": rejected,
+                "low_confidence": low_conf,
+                "avg_confidence": avg_conf
+            },
             "metrics": {
                 "precision": ner_metrics["precision"],
                 "recall": ner_metrics["recall"],
@@ -104,15 +131,15 @@ async def admin_dashboard(
             "recent_analyses": recent_analyses,
             "model_version": "florence-2-base-fallback"
         })
-        
-    except AttributeError as e:
-        # ✅ Gerçek AttributeError'u logla ve yeniden fırlat
-        logger.error(f"❌ AttributeError in admin_dashboard: {e}", exc_info=True)
-        raise
     except Exception as e:
-        logger.error(f"❌ Unexpected error in admin_dashboard: {e}", exc_info=True)
-        raise
-
+        logger.error(f"❌ Dashboard error: {e}", exc_info=True)
+        return templates.TemplateResponse("admin_dashboard.html", {
+            "request": request,
+            "stats": {"total": 0, "accepted": 0, "rejected": 0, "low_confidence": 0, "avg_confidence": 0},
+            "metrics": {"precision": 0, "recall": 0, "f1": 0, "exact_match": 0},
+            "recent_analyses": [],
+            "model_version": "error"
+        })
 
 @router.get("/api/analytics")
 async def get_analytics(db: Session = Depends(get_db), user: User = Depends(require_admin)):
