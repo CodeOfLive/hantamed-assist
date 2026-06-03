@@ -59,7 +59,8 @@ def add_missing_columns():
     """Mevcut tablolara eksik kolonları ekle"""
     try:
         with engine.connect() as conn:
-            columns_to_add = [
+            # ✅ analyses tablosu için kolonlar
+            analyses_columns = [
                 ("filename", "VARCHAR(255)"),
                 ("confidence_score", "FLOAT"),
                 ("analysis_duration_ms", "INTEGER"),
@@ -68,7 +69,7 @@ def add_missing_columns():
                 ("upload_timestamp", "TIMESTAMP"),
             ]
             
-            for col_name, col_type in columns_to_add:
+            for col_name, col_type in analyses_columns:
                 try:
                     if engine.dialect.name == 'postgresql':
                         conn.execute(text(
@@ -85,13 +86,34 @@ def add_missing_columns():
                 except Exception as e:
                     logger.warning(f"⚠️ Column {col_name} may already exist: {e}")
             
+            # ✅ users tablosu için kolonlar
+            users_columns = [
+                ("created_at", "TIMESTAMP"),
+                ("last_login", "TIMESTAMP"),
+            ]
+            
+            for col_name, col_type in users_columns:
+                try:
+                    if engine.dialect.name == 'postgresql':
+                        conn.execute(text(
+                            f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                        ))
+                    else:
+                        try:
+                            conn.execute(text(
+                                f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"
+                            ))
+                        except Exception:
+                            pass
+                    logger.info(f"✅ Column check: users.{col_name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Column {col_name} may already exist: {e}")
+            
             conn.commit()
-            logger.info("✅ All missing columns checked/added to analyses table")
+            logger.info("✅ All missing columns checked/added to analyses and users tables")
             
     except Exception as e:
         logger.error(f"❌ Error adding missing columns: {e}", exc_info=True)
-
-
 def init_db():
     """Initialize database with error handling"""
     # ✅ Import'ları fonksiyon İÇİNDE yap (circular import önler)
