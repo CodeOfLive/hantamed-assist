@@ -1,8 +1,8 @@
 """
 Database configuration and initialization for HantaMed Assist
 """
-from sqlalchemy import create_engine, inspect, event, text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from src.config import DB_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_RECYCLE
 import os
@@ -11,7 +11,8 @@ import logging
 # ✅ Logger tanımla
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+# ✅ Base'i src.models'dan import et (AYNI Base nesnesini kullan!)
+from src.models import Base
 
 
 def create_database_engine():
@@ -97,7 +98,7 @@ def init_db():
     from passlib.hash import bcrypt
     from src.config import ADMIN_PASSWORD
     
-    # ✅ 1. Tabloları oluştur
+    # ✅ 1. Tabloları oluştur (Base.metadata kullanarak)
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Database tables created/verified")
