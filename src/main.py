@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 
 from src.config import settings
-from src.database import engine, SessionLocal, Base
+from src.database import engine, SessionLocal, Base, init_db
 from src.models import Analysis  # ✅ Model import for startup check
 from src.routers import auth, admin, analyze, health
 
@@ -26,21 +26,32 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    # ✅ Startup: Database and Model check
+    # ✅ Startup: Initialize database (creates tables + adds missing columns)
     try:
+        logger.info("🚀 Starting database initialization...")
+        init_db()  # ✅ Bu fonksiyon:
+                   # 1. Tabloları oluşturur (yoksa)
+                   # 2. Eksik kolonları ekler (filename, confidence_score, vb.)
+                   # 3. Admin kullanıcıyı oluşturur
+        logger.info("✅ Database initialization complete")
+        
         # Database connection test
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
             logger.info("✅ Database connection: OK")
         
-        # Model columns test
+        # Model columns test (artık eksik olmamalı)
         if hasattr(Analysis, '__table__'):
             cols = [c.name for c in Analysis.__table__.columns]
             logger.info(f"✅ Analysis columns: {cols}")
             if 'confidence_score' not in cols:
                 logger.error("❌ confidence_score column MISSING in Analysis model!")
+            else:
+                logger.info("✅ confidence_score column: PRESENT")
             if 'filename' not in cols:
                 logger.error("❌ filename column MISSING in Analysis model!")
+            else:
+                logger.info("✅ filename column: PRESENT")
         
         logger.info("✅ Application startup checks complete")
         
@@ -54,16 +65,13 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Application shutting down...")
 
 
-# ✅ Create FastAPI app WITH lifespan (BU SATIR middleware'dan ÖNCE olmalı!)
+# ✅ Create FastAPI app WITH lifespan
 app = FastAPI(
     title="HantaMed Assist",
     description="KVKK-compliant medical image analysis system",
     version="1.0.0",
     lifespan=lifespan
 )
-
-# ✅ Middleware (app MUST be defined before this)
-# app.add_middleware(...)  # Gerekirse buraya ekleyin
 
 # ✅ Include routers
 app.include_router(auth.router)

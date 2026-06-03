@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine, inspect, event
+from sqlalchemy import create_engine, inspect, event, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
-from src.config import DB_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_RECYCLE
+from src.config import DB_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_RECYCLE, ADMIN_PASSWORD
 import os
 
 Base = declarative_base()
@@ -42,16 +42,68 @@ def get_db():
     finally:
         db.close()
 
+
+def add_missing_columns():
+    """Mevcut tablolara eksik kolonları ekle (PostgreSQL IF NOT EXISTS ile güvenli)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        with engine.connect() as conn:
+            # ✅ analyses tablosuna eksik kolonları ekle
+            columns_to_add = [
+                ("filename", "VARCHAR(255)"),
+                ("confidence_score", "FLOAT"),
+                ("analysis_duration_ms", "INTEGER"),
+                ("ocr_text_preview", "TEXT"),
+                ("entities_json", "JSON"),
+                ("upload_timestamp", "TIMESTAMP"),
+            ]
+            
+            for col_name, col_type in columns_to_add:
+                try:
+                    if engine.dialect.name == 'postgresql':
+                        conn.execute(text(
+                            f"ALTER TABLE analyses ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                        ))
+                    else:
+                        # SQLite için (IF NOT EXISTS desteklemez, try/except kullan)
+                        try:
+                            conn.execute(text(
+                                f"ALTER TABLE analyses ADD COLUMN {col_name} {col_type}"
+                            ))
+                        except Exception:
+                            pass  # Kolon zaten var
+                    logger.info(f"✅ Column check: analyses.{col_name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Column {col_name} may already exist: {e}")
+            
+            conn.commit()
+            logger.info("✅ All missing columns checked/added to analyses table")
+            
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"❌ Error adding missing columns: {e}", exc_info=True)
+
+
 def init_db():
-    """Tabloları oluştur ve default admin ekle - bcrypt 72-byte limit uyumlu"""
+    """Tabloları oluştur, eksik kolonları ekle ve default admin ekle"""
     from src.models import User
     from passlib.hash import bcrypt
-    from src.config import DEFAULT_ADMIN_PASS
+    import logging
+    logger = logging.getLogger(__name__)
     
+    # ✅ 1. Tabloları oluştur (yoksa)
     Base.metadata.create_all(bind=engine)
+    logger.info("✅ Database tables created/verified")
     
+    # ✅ 2. Eksik kolonları ekle (KRİTİK - Render'da eski tabloya yeni kolon ekler)
+    add_missing_columns()
+    
+    # ✅ 3. Admin kullanıcıyı oluştur/güncelle
     inspector = inspect(engine)
     if not inspector.has_table("users"):
+        logger.warning("⚠️ users table not found, skipping admin creation")
         return
         
     db = SessionLocal()
@@ -59,7 +111,7 @@ def init_db():
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
             # ✅ bcrypt 72-byte limit: şifreyi truncate et
-            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")[:72]
+            password_bytes = ADMIN_PASSWORD.encode("utf-8")[:72]
             hashed = bcrypt.hash(password_bytes)
             password_hash = hashed if isinstance(hashed, str) else hashed.decode("utf-8")
             new_admin = User(
@@ -70,10 +122,10 @@ def init_db():
             )
             db.add(new_admin)
             db.commit()
-            print(f"✅ Default admin created: admin / {DEFAULT_ADMIN_PASS}")
+            logger.info(f"✅ Default admin created: admin / {ADMIN_PASSWORD}")
         else:
             # Mevcut admin'in şifresini güncelle (aynı truncate mantığı)
-            password_bytes = DEFAULT_ADMIN_PASS.encode("utf-8")[:72]
+            password_bytes = ADMIN_PASSWORD.encode("utf-8")[:72]
             try:
                 verified = bcrypt.verify(password_bytes, admin.password_hash)
                 if not verified:
@@ -81,16 +133,16 @@ def init_db():
                     admin.password_hash = new_hash if isinstance(new_hash, str) else new_hash.decode("utf-8")
                     admin.password_change_required = False
                     db.commit()
-                    print("✅ Admin password reset to default.")
+                    logger.info("✅ Admin password reset to default.")
             except Exception:
                 new_hash = bcrypt.hash(password_bytes)
                 admin.password_hash = new_hash if isinstance(new_hash, str) else new_hash.decode("utf-8")
                 admin.password_change_required = False
                 db.commit()
-                print("✅ Admin password format updated.")
+                logger.info("✅ Admin password format updated.")
     except Exception as e:
         db.rollback()
-        print(f"⚠️ Admin init error: {e}")
+        logger.error(f"⚠️ Admin init error: {e}")
         raise
     finally:
         db.close()
