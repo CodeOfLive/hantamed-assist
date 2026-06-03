@@ -1,94 +1,93 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+"""
+Authentication utilities for HantaMed Assist
+"""
+from datetime import datetime
+from typing import Optional
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from src.database import get_db
+from src.models import User
+from src.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 from datetime import timedelta
 import logging
-
-from src.database import get_db
 from src.auth import authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
-from src.models import User
+
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["auth"])
+router = APIRouter(tags=["auth"])  # ✅ BU SATIR OLMALI
 templates = Jinja2Templates(directory="templates")
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    """Render login page"""
-    return templates.TemplateResponse("login.html", {"request": request})
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-@router.post("/login")
-async def login_for_access_token(
-    request: Request,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify plain password against hashed password"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """Hash password using bcrypt"""
+    return pwd_context.hash(password)
+
+
+def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
+    """Authenticate user by username and password"""
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), 
     db: Session = Depends(get_db)
-):
-    """Login endpoint - returns JWT token or redirects"""
+) -> User:
+    """Get current user from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Kimlik doğrulama token'ı geçersiz.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
-        user = authenticate_user(db, form_data.username, form_data.password)
-        if not user:
-            # Form submit: show error on login page
-            if "text/html" in request.headers.get("accept", ""):
-                return templates.TemplateResponse(
-                    "login.html", 
-                    {"request": request, "error": "Kullanıcı adı veya şifre hatalı."},
-                    status_code=401
-                )
-            # API call: return JSON error
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Kullanıcı adı veya şifre hatalı.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.username, "role": user.role}, 
-            expires_delta=access_token_expires
-        )
-        
-        # Form submit: redirect with cookie
-        if "text/html" in request.headers.get("accept", ""):
-            response = RedirectResponse(url="/admin", status_code=303)
-            response.set_cookie(
-                key="access_token", 
-                value=access_token, 
-                httponly=True, 
-                max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                samesite="lax"
-            )
-            return response
-        
-        # API call: return JSON token
-        return {"access_token": access_token, "token_type": "bearer"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
-        # Form submit: show generic error
-        if "text/html" in request.headers.get("accept", ""):
-            return templates.TemplateResponse(
-                "login.html",
-                {"request": request, "error": "İşlem tamamlanamadı. Lütfen tekrar deneyin."},
-                status_code=500
-            )
-        # API call: return JSON error
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "message": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
-                "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın."
-            }
-        )
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
-@router.get("/admin/logout")
-async def logout(request: Request):
-    """Logout - clear cookie and redirect"""
-    response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(key="access_token")
-    return response
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Require admin role for endpoint access"""
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bu işlem için yönetici yetkisi gereklidir."
+        )
+    return user
