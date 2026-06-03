@@ -1,15 +1,15 @@
 ﻿"""
 Database models for HantaMed Assist
+KVKK-compliant: No personal data stored without consent
 """
-# ✅ ÖNEMLİ: Base'i database.py'den import et
+# ✅ KRİTİK: Base'i database.py'den import et (aynı Base nesnesini kullan!)
 from src.database import Base
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON, Boolean, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON, Boolean
 from datetime import datetime
 
 
-# ✅ User sınıfı - SADECE BİR KEZ!
 class User(Base):
-    """Admin user model"""
+    """Admin user model for authentication"""
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -21,7 +21,6 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
 
-# ✅ Analysis sınıfı - SADECE BİR KEZ!
 class Analysis(Base):
     """Medical image analysis result model"""
     __tablename__ = "analyses"
@@ -62,7 +61,6 @@ class Analysis(Base):
         return f"<Analysis(id={self.id}, filename='{self.filename}', status='{self.status}')>"
 
 
-# ✅ SystemLog sınıfı - SADECE BİR KEZ!
 class SystemLog(Base):
     """System audit log"""
     __tablename__ = "system_logs"
