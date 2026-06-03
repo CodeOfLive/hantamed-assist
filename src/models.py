@@ -1,22 +1,35 @@
 ﻿"""
 Database models for HantaMed Assist
-KVKK-compliant: No personal data stored without consent
 """
+# ✅ ÖNEMLİ: Base'i database.py'den import et
+from src.database import Base
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON, Boolean, func
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-Base = declarative_base()
+
+# ✅ User sınıfı - SADECE BİR KEZ!
+class User(Base):
+    """Admin user model"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), default="admin", nullable=False)
+    password_change_required = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
 
 
+# ✅ Analysis sınıfı - SADECE BİR KEZ!
 class Analysis(Base):
     """Medical image analysis result model"""
     __tablename__ = "analyses"
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # ✅ File info (REQUIRED for admin panel)
-    filename = Column(String(255), nullable=True)  # ✅ EKLENDİ
+    # ✅ File info
+    filename = Column(String(255), nullable=True)
     image_hash = Column(String(64), unique=True, index=True, nullable=False)
     file_size_kb = Column(Float, nullable=True)
     image_format = Column(String(10), nullable=True)
@@ -24,12 +37,12 @@ class Analysis(Base):
     height = Column(Integer, nullable=True)
     
     # ✅ Timestamps
-    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    upload_timestamp = Column(DateTime, default=datetime.utcnow)
     
     # ✅ Analysis results
     relevance_score = Column(Float, nullable=True)
     avg_confidence = Column(Float, nullable=True)
-    confidence_score = Column(Float, nullable=True)  # ✅ EKLENDİ
+    confidence_score = Column(Float, nullable=True)
     status = Column(String(50), default="pending", nullable=False)
     extracted_entities = Column(JSON, nullable=True)
     model_version = Column(String(50), nullable=True)
@@ -43,7 +56,20 @@ class Analysis(Base):
     
     # ✅ User tracking
     user_id = Column(String(64), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     def __repr__(self):
         return f"<Analysis(id={self.id}, filename='{self.filename}', status='{self.status}')>"
+
+
+# ✅ SystemLog sınıfı - SADECE BİR KEZ!
+class SystemLog(Base):
+    """System audit log"""
+    __tablename__ = "system_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    level = Column(String(10), nullable=False)
+    module = Column(String(50), nullable=True)
+    message = Column(Text, nullable=False)
+    metadata_json = Column(JSON, nullable=True)
