@@ -1,6 +1,5 @@
 """
-Authentication utilities: JWT token creation, password hashing, user verification
-KVKK-compliant: No PII stored in tokens, short expiry times
+Authentication utilities for HantaMed Assist
 """
 from datetime import datetime, timedelta
 from typing import Optional
@@ -9,6 +8,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+
 from src.database import get_db
 from src.models import User
 from src.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -19,13 +19,16 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify plain password against hashed password"""
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     """Hash password using bcrypt"""
     return pwd_context.hash(password)
+
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
     """Authenticate user by username and password"""
@@ -36,6 +39,7 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
         return None
     return user
 
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
@@ -44,7 +48,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db)
+) -> User:
     """Get current user from JWT token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,6 +72,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     return user
 
+
 def require_admin(user: User = Depends(get_current_user)) -> User:
     """Require admin role for endpoint access"""
     if user.role != "admin":
@@ -72,15 +81,3 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
             detail="Bu işlem için yönetici yetkisi gereklidir."
         )
     return user
-
-def optional_auth(request) -> Optional[dict]:
-    """Optional auth for endpoints that work with or without login"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None
-    try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return {"username": payload.get("sub"), "role": payload.get("role")}
-    except JWTError:
-        return None
