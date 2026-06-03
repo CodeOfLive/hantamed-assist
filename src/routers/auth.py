@@ -32,8 +32,12 @@ async def login_for_access_token(
 ):
     """Login endpoint - returns JWT token or redirects"""
     try:
+        logger.info(f"🔐 Login attempt: {form_data.username}")
+        
+        # Authenticate user
         user = authenticate_user(db, form_data.username, form_data.password)
         if not user:
+            logger.warning(f"❌ Invalid credentials for: {form_data.username}")
             if "text/html" in request.headers.get("accept", ""):
                 return templates.TemplateResponse(
                     "login.html", 
@@ -46,40 +50,50 @@ async def login_for_access_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
+        logger.info(f"✅ User authenticated: {user.username}")
+        
+        # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user.username, "role": user.role}, 
             expires_delta=access_token_expires
         )
         
+        logger.info(f"✅ Access token created for: {user.username}")
+        
+        # Form submit: redirect with cookie
         if "text/html" in request.headers.get("accept", ""):
-            response = RedirectResponse(url="/admin", status_code=303)
+            response = RedirectResponse(url="/admin/", status_code=303)
             response.set_cookie(
                 key="access_token", 
                 value=f"Bearer {access_token}",
                 httponly=True, 
                 max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                samesite="lax"
+                samesite="lax",
+                secure=False  # Render HTTPS için True yapabilirsiniz
             )
+            logger.info(f"✅ Cookie set, redirecting to /admin/")
             return response
         
+        # API call: return JSON token
         return {"access_token": access_token, "token_type": "bearer"}
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
+        logger.error(f"❌ Login error: {e}", exc_info=True)
+        
         if "text/html" in request.headers.get("accept", ""):
             return templates.TemplateResponse(
                 "login.html",
-                {"request": request, "error": "İşlem tamamlanamadı. Lütfen tekrar deneyin."},
+                {"request": request, "error": f"İşlem tamamlanamadı: {str(e)}"},
                 status_code=500
             )
         return JSONResponse(
             status_code=500,
             content={
                 "status": "error",
-                "message": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+                "message": f"İşlem tamamlanamadı: {str(e)}",
                 "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."
             }
         )
