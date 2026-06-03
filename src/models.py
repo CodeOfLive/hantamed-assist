@@ -1,8 +1,7 @@
 ﻿"""
 Database models for HantaMed Assist
-KVKK-compliant: No personal data stored without consent
 """
-# ✅ KRİTİK: Base'i database.py'den import et (aynı Base nesnesini kullan!)
+# ✅ Base'i src.database'den import et (circular import YOK!)
 from src.database import Base
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON, Boolean
 from datetime import datetime
