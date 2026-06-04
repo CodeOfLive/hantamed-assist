@@ -3,180 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - HantaMed Assist</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>HantaMed Admin</title>
     <style>
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0; }
-        .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; text-align: center; }
-        .stat-value { font-size: 2rem; font-weight: bold; color: #0F4C75; }
-        .stat-label { color: #6b7280; font-size: 0.9rem; }
-        .metrics-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-        .metrics-table th, .metrics-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        .metrics-table th { background: #f8fafc; font-weight: 600; }
-        .analysis-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-        .analysis-table th, .analysis-table td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
-        .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
-        .badge-accepted { background: #d1fae5; color: #065f46; }
-        .badge-rejected { background: #fee2e2; color: #991b1b; }
-        .badge-low { background: #fef3c7; color: #92400e; }
-        .detail-row { display: flex; justify-content: space-between; padding: 0.25rem 0; }
-        .detail-label { color: #6b7280; }
-        .detail-value { font-weight: 500; }
-        .expandable { cursor: pointer; }
-        .expandable:hover { background: #f8fafc; }
-        .hidden-details { display: none; padding: 0.5rem; background: #f8fafc; border-left: 3px solid #0F4C75; }
-        .show { display: block; }
-        .entities-json { font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto; background: #f1f5f9; padding: 8px; border-radius: 4px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #334155; }
+        nav { background: #0F4C75; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 1.5rem; }
+        nav a { color: white; text-decoration: none; margin-left: 1rem; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-card h3 { font-size: 2rem; color: #0F4C75; margin-bottom: 0.5rem; }
+        .stat-card p { color: #64748b; font-size: 0.9rem; }
+        .section { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+        .section h2 { margin-bottom: 1rem; color: #0F4C75; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-weight: 600; color: #475569; }
+        tr:hover { background: #f8fafc; }
+        .status-badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .status-accepted { background: #dcfce7; color: #166534; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-low_confidence { background: #fef3c7; color: #92400e; }
+        .empty-state { text-align: center; padding: 2rem; color: #64748b; }
     </style>
 </head>
 <body>
-    <nav aria-label="Ana menü">
-        <div class="nav-content">
-            <h1>🛡️ HantaMed Admin</h1>
-            <div class="nav-links">
-                <a href="/">Ana Sayfa</a>
-                <a href="/admin/logout">Çıkış</a>
-            </div>
+    <nav>
+        <h1>🛡️ HantaMed Admin</h1>
+        <div>
+            <a href="/">Ana Sayfa</a>
+            <a href="/admin/logout">Çıkış</a>
         </div>
     </nav>
     
-    <main class="container">
-        <section class="card">
-            <h2>📊 Genel İstatistikler</h2>
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-value">{{ stats.total }}</div>
-                    <div class="stat-label">Toplam Analiz</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" style="color:#065f46">{{ stats.accepted }}</div>
-                    <div class="stat-label">Kabul Edilen</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" style="color:#991b1b">{{ stats.rejected }}</div>
-                    <div class="stat-label">Reddedilen</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" style="color:#92400e">{{ stats.low_confidence }}</div>
-                    <div class="stat-label">Düşük Güven</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ stats.avg_confidence }}</div>
-                    <div class="stat-label">Ort. Güven Skoru</div>
-                </div>
+    <div class="container">
+        <!-- İstatistikler -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ stats.total }}</h3>
+                <p>Toplam Analiz</p>
             </div>
-        </section>
-
-        <section class="card">
-            <h2>🎯 Model Performans Metrikleri</h2>
-            <table class="metrics-table">
-                <thead>
-                    <tr>
-                        <th>Metrik</th>
-                        <th>Değer</th>
-                        <th>Açıklama</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Precision</strong></td>
-                        <td>{{ metrics.precision }}</td>
-                        <td>Doğru pozitif / Tüm pozitif tahminler</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Recall</strong></td>
-                        <td>{{ metrics.recall }}</td>
-                        <td>Doğru pozitif / Tüm gerçek pozitifler</td>
-                    </tr>
-                    <tr>
-                        <td><strong>F1 Score</strong></td>
-                        <td><strong>{{ metrics.f1 }}</strong></td>
-                        <td>Precision ve Recall'ın harmonik ortalaması</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Exact Match</strong></td>
-                        <td>{{ metrics.exact_match }}</td>
-                        <td>Tam eşleşen entity çıkarımları</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p class="text-secondary" style="font-size:0.9rem">
-                ℹ️ Metrikler anonim test verisi üzerinde hesaplanmıştır. 
-                Gerçek değerlendirme için ground truth etiketleri gereklidir.
-            </p>
-        </section>
-
-        <section class="card">
+            <div class="stat-card">
+                <h3>{{ stats.accepted }}</h3>
+                <p>Kabul Edilen</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ stats.rejected }}</h3>
+                <p>Reddedilen</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ stats.low_confidence }}</h3>
+                <p>Düşük Güven</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ stats.avg_confidence }}</h3>
+                <p>Ort. Güven Skoru</p>
+            </div>
+        </div>
+        
+        <!-- Son Analizler -->
+        <div class="section">
             <h2>📋 Son Analizler</h2>
-            <table class="analysis-table">
+            {% if recent_analyses %}
+            <table>
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Dosya</th>
-                        <th>📅 Tarih</th>
-                        <th>⏱️ Süre</th>
-                        <th>🔍 OCR</th>
-                        <th>📦 Entities</th>
-                        <th>Conf</th>
+                        <th>Tarih</th>
+                        <th>Süre (ms)</th>
+                        <th>Entities</th>
+                        <th>Güven</th>
                         <th>Durum</th>
-                        <th>Detay</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in recent_analyses %}
-                    <tr class="expandable" onclick="toggleDetails({{ item.id }})">
-                        <td>#{{ item.id }}</td>
-                        <td>{{ item.filename[:15] }}...</td>
-                        <!-- ✅ Yeni kolonlar: upload_date, analysis_duration_ms, ocr_preview, entities_count -->
-                        <td>{{ item.upload_date[:10] if item.upload_date else '-' }}</td>
-                        <td>{{ item.analysis_duration_ms if item.analysis_duration_ms else '-' }}ms</td>
-                        <td>{{ (item.ocr_preview[:10] + '...') if item.ocr_preview else '-' }}</td>
-                        <td>{{ item.entities_count if item.entities_count else 0 }}</td>
-                        <td>{{ item.confidence if item.confidence else '0.00' }}</td>
+                    {% for analysis in recent_analyses %}
+                    <tr>
+                        <td>{{ analysis.id }}</td>
+                        <td>{{ analysis.filename }}</td>
+                        <td>{{ analysis.upload_date }}</td>
+                        <td>{{ analysis.analysis_duration_ms }}</td>
+                        <td>{{ analysis.entities_count }}</td>
+                        <td>{{ analysis.confidence }}</td>
                         <td>
-                            <span class="badge badge-{{ 'accepted' if item.status=='accepted' else 'rejected' if item.status=='rejected' else 'low' }}">
-                                {{ item.status }}
+                            <span class="status-badge status-{{ analysis.status }}">
+                                {{ analysis.status }}
                             </span>
-                        </td>
-                        <td>▼</td>
-                    </tr>
-                    <!-- ✅ Genişleyen detaylar -->
-                    <tr id="details-{{ item.id }}" class="hidden-details">
-                        <td colspan="9">
-                            <div class="detail-row"><span class="detail-label">📅 Tam Zaman:</span> <span class="detail-value">{{ item.upload_date or 'Yok' }}</span></div>
-                            <div class="detail-row"><span class="detail-label">🔍 OCR Önizleme:</span> <span class="detail-value">{{ item.ocr_preview or 'Yok' }}</span></div>
-                            <div class="detail-row"><span class="detail-label">📦 Entities JSON:</span> <span class="detail-value entities-json">{{ item.entities_json | tojson(indent=2) if item.entities_json else '{}' }}</span></div>
-                            <div class="detail-row"><span class="detail-label">📝 QA Summary:</span> <span class="detail-value">{{ item.qa_summary or 'Yok' }}</span></div>
-                            <div class="detail-row"><span class="detail-label">⏱️ Analiz Süresi:</span> <span class="detail-value">{{ item.analysis_duration_ms }}ms</span></div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-        </section>
-    </main>
-    
-    <footer>
-        <div class="disclaimer-footer">
-            Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın.
+            {% else %}
+            <div class="empty-state">
+                <p>Henüz analiz yapılmamış.</p>
+            </div>
+            {% endif %}
         </div>
-    </footer>
-    
-    <script>
-        function toggleDetails(id) {
-            const el = document.getElementById('details-' + id);
-            if (el) el.classList.toggle('show');
-        }
         
-        // Auto-refresh metrics every 5 minutes
-        setInterval(() => {
-            fetch('/admin/api/analytics')
-                .then(r => r.json())
-                .then(data => {
-                    console.log('Metrics refreshed:', data.summary);
-                })
-                .catch(err => console.error('Refresh failed:', err));
-        }, 300000);
-    </script>
+        <!-- Model Bilgisi -->
+        <div class="section">
+            <h2>ℹ️ Sistem Bilgisi</h2>
+            <p><strong>Model:</strong> {{ model_version }}</p>
+            <p><strong>Veritabanı:</strong> PostgreSQL (NeonDB)</p>
+            <p><strong>OCR:</strong> Tesseract (Türkçe + İngilizce)</p>
+        </div>
+    </div>
 </body>
 </html>
