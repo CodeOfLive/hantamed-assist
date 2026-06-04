@@ -15,6 +15,21 @@ from src.database import engine, SessionLocal, Base, init_db
 from src.models import Analysis  # ✅ Model import for startup check
 from src.routers import auth, admin, analyze, health
 
+
+# ✅ Loguru'yu yapılandır (Render loglarına yazması için)
+import sys
+from loguru import logger
+
+# Default logger'ı kaldır ve yeniden yapılandır
+logger.remove()
+logger.add(
+    sys.stderr,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    level="INFO",
+    colorize=True
+)
+
+
 # ✅ Logging config
 logging.basicConfig(
     level=logging.INFO,
