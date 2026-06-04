@@ -74,10 +74,10 @@ app = FastAPI(
 )
 
 # ✅ Include routers
-app.include_router(auth.router)
-app.include_router(admin.router)
-app.include_router(analyze.router)
-app.include_router(health.router)
+app.include_router(auth.router)     # /login, /admin/logout
+app.include_router(admin.router)    # /admin/
+app.include_router(analyze.router)  # /api/analyze
+app.include_router(health.router)   # /health
 
 # ✅ Static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")

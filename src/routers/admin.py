@@ -1,90 +1,52 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, Cookie, status
-from fastapi.responses import HTMLResponse, JSONResponse
+﻿"""
+Admin panel router for HantaMed Assist
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request, Cookie, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, cast, Date
+from sqlalchemy import func, desc
 from typing import Optional
 from datetime import datetime, timedelta
-from jose import jwt
 import logging
 
 from src.database import get_db
-from src.auth import require_admin
 from src.models import Analysis, User
-from src.evaluation.metrics import MetricsCalculator, MetricResult
 from src.config import SECRET_KEY, ALGORITHM
-
-logging.basicConfig(level=logging.INFO)  # ✅ Render'da logları görmek için
-logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="templates")
 
 
-def get_current_user_from_cookie(
-    access_token: str = Cookie(None, alias="access_token"),
-    db: Session = Depends(get_db)
-) -> User:
-    """Get user from cookie-based JWT token (for browser sessions)"""
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Kimlik doğrulama token'ı bulunamadı.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    try:
-        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=401, detail="Token geçersiz.")
-    except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Token decode edilemedi.")
-    
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı.")
-    return user
-
-
 @router.get("/", response_class=HTMLResponse)
 async def admin_dashboard(
     request: Request, 
     db: Session = Depends(get_db),
-    access_token: Optional[str] = Cookie(None)  # ✅ Cookie'den token al
+    access_token: Optional[str] = Cookie(None)  # Cookie'den oku
 ):
-    """Admin dashboard with detailed analytics"""
+    """Admin dashboard"""
     import logging
     logger = logging.getLogger(__name__)
-    
-    # ✅ Token kontrolü (cookie veya header)
     if not access_token:
-        # Cookie yoksa login sayfasına yönlendir
-        logger.warning("⚠️ No access_token cookie found, redirecting to login")
-        from fastapi.responses import RedirectResponse
+        logger.warning("⚠️ No access_token cookie found")
         return RedirectResponse(url="/login", status_code=303)
     
-    # ✅ Token decode
+    if access_token.startswith("Bearer "):
+        access_token = access_token[7:]
+    
     try:
         from jose import jwt
         from src.config import SECRET_KEY, ALGORITHM
         payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            from fastapi.responses import RedirectResponse
+        username = payload.get("sub")
+        if not username:
+            logger.warning("⚠️ Token has no 'sub' claim")
             return RedirectResponse(url="/login", status_code=303)
     except Exception as e:
         logger.error(f"❌ Token decode error: {e}")
-        from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/login", status_code=303)
     
-    # ✅ Kullanıcı kontrolü
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login", status_code=303)
-    
-    # ✅ Dashboard içeriği
     try:
         total = db.query(func.count(Analysis.id)).scalar() or 0
         accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
@@ -110,29 +72,27 @@ async def admin_dashboard(
                 "qa_summary": a.qa_summary
             })
         
-        from src.evaluation.metrics import MetricsCalculator
-        ner_metrics = MetricsCalculator.calculate_ner_metrics([])
+        try:
+            from src.evaluation.metrics import MetricsCalculator
+            ner_metrics = MetricsCalculator.calculate_ner_metrics([])
+        except Exception:
+            ner_metrics = {"precision": 0, "recall": 0, "f1": 0, "exact_match": 0}
         
         return templates.TemplateResponse("admin_dashboard.html", {
             "request": request,
             "stats": {
-                "total": total,
-                "accepted": accepted,
-                "rejected": rejected,
-                "low_confidence": low_conf,
-                "avg_confidence": avg_conf
+                "total": total, "accepted": accepted, "rejected": rejected,
+                "low_confidence": low_conf, "avg_confidence": avg_conf
             },
             "metrics": {
-                "precision": ner_metrics["precision"],
-                "recall": ner_metrics["recall"],
-                "f1": ner_metrics["f1"],
-                "exact_match": ner_metrics["exact_match"]
+                "precision": ner_metrics["precision"], "recall": ner_metrics["recall"],
+                "f1": ner_metrics["f1"], "exact_match": ner_metrics["exact_match"]
             },
             "recent_analyses": recent_analyses,
             "model_version": "florence-2-base-fallback"
         })
     except Exception as e:
-        logger.error(f"❌ Dashboard error: {e}", exc_info=True)
+        logger.error(f"Dashboard error: {e}", exc_info=True)
         return templates.TemplateResponse("admin_dashboard.html", {
             "request": request,
             "stats": {"total": 0, "accepted": 0, "rejected": 0, "low_confidence": 0, "avg_confidence": 0},
@@ -141,67 +101,22 @@ async def admin_dashboard(
             "model_version": "error"
         })
 
+
 @router.get("/api/analytics")
-async def get_analytics(db: Session = Depends(get_db), user: User = Depends(require_admin)):
-    """JSON endpoint for analytics data"""
-    total = db.query(func.count(Analysis.id)).scalar() or 0
-    accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
-    rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
-    low_conf = db.query(func.count(Analysis.id)).filter(Analysis.status == "low_confidence").scalar() or 0
-    
-    avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
-    avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
-    
-    daily_stats = db.query(
-        cast(Analysis.upload_timestamp, Date).label("date"),
-        func.count(Analysis.id).label("count"),
-        func.avg(Analysis.confidence_score).label("avg_conf")
-    ).filter(
-        Analysis.upload_timestamp >= datetime.utcnow() - timedelta(days=7)
-    ).group_by(cast(Analysis.upload_timestamp, Date)).order_by(cast(Analysis.upload_timestamp, Date)).all()
-    
-    daily_data = [{"date": str(d[0]), "count": d[1], "avg_conf": round(d[2], 3) if d[2] else None} for d in daily_stats]
-    
-    return JSONResponse(content={
-        "summary": {
-            "total": total, "accepted": accepted, "rejected": rejected,
-            "low_confidence": low_conf, "avg_confidence": avg_conf
-        },
-        "daily_trend": daily_data,
-        "model_version": "florence-2-base-fallback",
-        "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."
-    })
-
-
-@router.get("/api/analysis/{analysis_id}")
-async def get_analysis_detail(analysis_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
-    """Get detailed info for a single analysis"""
-    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    return JSONResponse(content={
-        "id": analysis.id,
-        "filename": analysis.filename,
-        "status": analysis.status,
-        "confidence": round(analysis.confidence_score, 3) if analysis.confidence_score else None,
-        "upload_timestamp": analysis.upload_timestamp.isoformat() if analysis.upload_timestamp else None,
-        "analysis_duration_ms": analysis.analysis_duration_ms,
-        "ocr_text_preview": analysis.ocr_text_preview,
-        "entities": analysis.entities_json,
-        "qa_summary": analysis.qa_summary,
-        "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."
-    })
-
-
-@router.get("/metrics")
-async def get_model_metrics(db: Session = Depends(get_db), user: User = Depends(require_admin)):
-    """Get model performance metrics (F1, precision, recall)"""
-    ner_metrics = MetricsCalculator.calculate_ner_metrics([])
-    return JSONResponse(content={
-        "ner_metrics": ner_metrics,
-        "model_version": "florence-2-base-fallback",
-        "last_updated": datetime.utcnow().isoformat(),
-        "note": "Metrics calculated on anonymized test set.",
-        "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır."
-    })
+async def get_analytics(db: Session = Depends(get_db)):
+    """JSON endpoint for analytics"""
+    try:
+        total = db.query(func.count(Analysis.id)).scalar() or 0
+        accepted = db.query(func.count(Analysis.id)).filter(Analysis.status == "accepted").scalar() or 0
+        rejected = db.query(func.count(Analysis.id)).filter(Analysis.status == "rejected").scalar() or 0
+        low_conf = db.query(func.count(Analysis.id)).filter(Analysis.status == "low_confidence").scalar() or 0
+        
+        return JSONResponse(content={
+            "summary": {
+                "total": total, "accepted": accepted, "rejected": rejected,
+                "low_confidence": low_conf, "avg_confidence": 0
+            },
+            "model_version": "florence-2-base-fallback"
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
