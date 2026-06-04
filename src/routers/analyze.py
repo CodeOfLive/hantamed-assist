@@ -94,34 +94,36 @@ def _extract_entities(ocr_text: str) -> dict:
 def _log_analysis(db: Session, filename: str, image_hash: str, relevance_score: float, 
                 avg_confidence: float, status: str, extracted_entities: dict, 
                 latency_ms: float, qa_summary: str, ocr_preview: str = None):
-    """Analizi veritabanına kaydet"""
+    """Analizi veritabanına güvenli bir şekilde kaydet"""
     try:
-        ocr_preview = (ocr_preview[:500] + "...") if ocr_preview and len(ocr_preview) > 500 else ocr_preview
-        qa_summary = (qa_summary[:500] + "...") if qa_summary and len(qa_summary) > 500 else qa_summary
+        # ✅ GÜVENLİ KESME: None kontrolü ekle
+        safe_filename = (filename[:255] if filename else "unknown_file")
+        safe_ocr = (ocr_preview[:500] + "...") if ocr_preview and len(ocr_preview) > 500 else (ocr_preview or "")
+        safe_summary = (qa_summary[:500] + "...") if qa_summary and len(qa_summary) > 500 else (qa_summary or "")
         
         log_entry = Analysis(
-            filename=filename[:255],
+            filename=safe_filename,
             image_hash=image_hash,
-            relevance_score=relevance_score,
-            avg_confidence=avg_confidence,
+            relevance_score=float(relevance_score or 0.0),
+            avg_confidence=float(avg_confidence or 0.0),
             status=status,
             upload_timestamp=datetime.utcnow(),
-            analysis_duration_ms=int(latency_ms),
-            ocr_text_preview=ocr_preview,
+            analysis_duration_ms=int(latency_ms or 0),
+            ocr_text_preview=safe_ocr,
             entities_json=extracted_entities if extracted_entities else {},
-            confidence_score=avg_confidence,
+            confidence_score=float(avg_confidence or 0.0),
             extracted_entities=json.dumps(extracted_entities) if extracted_entities else "{}",
-            latency_ms=int(latency_ms),
-            qa_summary=qa_summary
+            latency_ms=int(latency_ms or 0),
+            qa_summary=safe_summary
         )
         db.add(log_entry)
         db.commit()
-        logger.info(f"✅ Analysis logged: {filename} -> {status}")
+        logger.info(f"✅ Analysis logged successfully: {safe_filename} -> {status}")
     except Exception as e:
-        logger.error(f"❌ Logging failed: {e}")
+        logger.error(f"❌ Logging failed: {e}", exc_info=True)
         db.rollback()
 
-
+        
 @router.post("/analyze")
 async def analyze_image(
     request: Request,
