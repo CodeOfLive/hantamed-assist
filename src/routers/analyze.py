@@ -123,7 +123,7 @@ def _log_analysis(db: Session, filename: str, image_hash: str, relevance_score: 
         logger.error(f"❌ Logging failed: {e}", exc_info=True)
         db.rollback()
 
-        
+
 @router.post("/analyze")
 async def analyze_image(
     request: Request,
@@ -135,12 +135,16 @@ async def analyze_image(
     start_time = time.time()
     image_hash = None
     tmp_path = None
-    
+
+     # ✅ GÜVENLİ FILENAME ERİŞİMİ
+    filename = getattr(file, 'filename', None) or "unknown_file.png"
+    logger.info(f"📁 Received file: {filename}")
+
     try:
         if not accepted_policy:
             raise HTTPException(400, detail="Veri işleme politikası kabul edilmelidir.")
         
-        ext = os.path.splitext(file.filename)[1].lower()
+        ext = os.path.splitext(filename)[1].lower() if '.' in filename else ".png"
         if ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(400, detail="Desteklenmeyen dosya formatı.")
         
@@ -157,7 +161,7 @@ async def analyze_image(
         image_hash = hashlib.sha256(content).hexdigest()
         
         # ✅ GERÇEK OCR (Tesseract)
-        logger.info(f"🔍 Starting OCR for: {file.filename}")
+        logger.info(f"🔍 Starting OCR for: {filename}")
         ocr_text = _perform_ocr(tmp_path)
         logger.info(f"📝 OCR text length: {len(ocr_text)} chars")
         logger.info(f"📝 OCR preview: {ocr_text[:200]}")
@@ -168,12 +172,13 @@ async def analyze_image(
         
         ocr_preview_str = ", ".join(val.get("keywords_found", []))
         
+        
         # Tıbbi içerik yoksa reddet
         if not val["is_valid"]:
             latency_ms = (time.time() - start_time) * 1000
             background_tasks.add_task(_cleanup_temp_file, tmp_path)
             _log_analysis(
-                db, file.filename, image_hash, val["score"], 0.0, 
+                db, filename, image_hash, val["score"], 0.0, 
                 "rejected", {}, latency_ms, val["reason"], ocr_preview_str
             )
             return {
@@ -203,7 +208,7 @@ async def analyze_image(
         # Veritabanına kaydet
         latency_ms = (time.time() - start_time) * 1000
         _log_analysis(
-            db, file.filename, image_hash, val["score"], avg_confidence, 
+            db, filename, image_hash, val["score"], avg_confidence, 
             status_val, entities, latency_ms, qa_summary, ocr_preview_str
         )
         
@@ -216,7 +221,7 @@ async def analyze_image(
             "metadata": {
                 "latency_ms": int(latency_ms),
                 "model_version": "tesseract-ocr-tur+eng",
-                "filename": file.filename,
+                "filename": filename,
                 "keywords_found": val.get("keywords_found", [])
             }
         }
