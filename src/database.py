@@ -67,6 +67,8 @@ def add_missing_columns():
                 ("ocr_text_preview", "TEXT"),
                 ("entities_json", "JSON"),
                 ("upload_timestamp", "TIMESTAMP"),
+                ("user_id", "VARCHAR(64)"),           # ✅ YENİ EKLENDİ
+                ("created_at", "TIMESTAMP"),           # ✅ YENİ EKLENDİ
             ]
             
             for col_name, col_type in analyses_columns:
@@ -114,6 +116,8 @@ def add_missing_columns():
             
     except Exception as e:
         logger.error(f"❌ Error adding missing columns: {e}", exc_info=True)
+
+
 def init_db():
     """Initialize database with error handling"""
     # ✅ Import'ları fonksiyon İÇİNDE yap (circular import önler)
