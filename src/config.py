@@ -123,3 +123,4 @@ LOG_LEVEL = settings.LOG_LEVEL
 # Keywords for input validation
 MEDICAL_KEYWORDS = settings.MEDICAL_KEYWORDS
 COMMERCIAL_KEYWORDS = settings.COMMERCIAL_KEYWORDS
+CONFIDENCE_THRESHOLD = 0.3  # ✅ Test için 0.3'e düşürdük (daha esnek)

@@ -8,118 +8,119 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models import Analysis, SystemLog
-from src.config import CONFIDENCE_THRESHOLD, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
+from src.config import CONFIDENCE_THRESHOLD, MAX_FILE_SIZE, ALLOWED_EXTENSIONS, MEDICAL_KEYWORDS
 from loguru import logger
 import shutil
 from PIL import Image
-
-# ✅ Hatalı import'ları yorum yap (src.models artık paket değil, dosya)
-# from src.models.input_validator import InputValidator
-# from src.models.inference import FlorencePipeline
-# from src.privacy.pii_redactor import PiiRedactor
-# from src.privacy_handler import process_privacy
-# from src.auth import get_current_user
+import pytesseract
 
 router = APIRouter(prefix="/api", tags=["analyze"])
 
 
-# ✅ Mock sınıflar (gerçek modeller olmadan test için)
-class MockInputValidator:
-    """Mock input validator for testing without real models"""
-    def check(self, file_path: str) -> dict:
-        """Validate input file"""
-        return {
-            "is_valid": True,
-            "score": 0.8,
-            "reason": "Mock validation - file accepted",
-            "debug": {
-                "sample_keywords": ["reçete", "ilaç", "doz"],
-                "ocr_text": "Mock OCR text for testing"
-            }
-        }
-    
-    def validate(self, text: str) -> dict:
-        """Validate text content"""
-        return {
-            "is_valid": True,
-            "score": 0.8,
-            "reason": "Mock validation"
-        }
-
-
-class MockFlorencePipeline:
-    """Mock Florence model pipeline for testing"""
-    def __init__(self):
-        self.model_name = "florence-2-base-mock"
-    
-    def analyze(self, image_path: str) -> dict:
-        """Analyze image (mock)"""
-        return {
-            "confidence": 0.85,
-            "entities": {
-                "drug_0": {"name": "Paracetamol", "dosage": "500mg"},
-                "drug_1": {"name": "Ibuprofen", "dosage": "400mg"}
-            },
-            "summary": "Mock analysis result - 2 medications detected",
-            "ocr_text": "Mock OCR: Paracetamol 500mg, Ibuprofen 400mg"
-        }
-    
-    def __call__(self, image_path: str) -> dict:
-        """Make pipeline callable"""
-        return self.analyze(image_path)
-
-
-class MockPiiRedactor:
-    """Mock PII redactor for testing"""
-    def redact(self, text: str) -> str:
-        """Redact PII from text (mock)"""
-        return text  # No redaction in mock
-
-
-# ✅ Mock instance'ları oluştur
-validator = MockInputValidator()
-redactor = MockPiiRedactor()
-model = MockFlorencePipeline()
 def _cleanup_temp_file(path: str):
+    """Geçici dosyayı sil"""
     try:
         if os.path.exists(path):
             os.remove(path)
     except Exception as e:
         logger.warning(f"Cleanup failed for {path}: {e}")
 
+
+def _perform_ocr(image_path: str) -> str:
+    """Gerçek Tesseract OCR ile metin çıkar"""
+    try:
+        img = Image.open(image_path)
+        # Türkçe + İngilizce OCR
+        text = pytesseract.image_to_string(img, lang='tur+eng')
+        return text.strip()
+    except Exception as e:
+        logger.error(f"❌ OCR failed: {e}")
+        return ""
+
+
+def _check_medical_content(ocr_text: str) -> dict:
+    """OCR metninde medikal anahtar kelimeleri kontrol et"""
+    if not ocr_text:
+        return {
+            "is_valid": False, 
+            "score": 0.0, 
+            "reason": "OCR metni boş", 
+            "keywords_found": []
+        }
+    
+    text_lower = ocr_text.lower()
+    keywords_found = [kw for kw in MEDICAL_KEYWORDS if kw.lower() in text_lower]
+    
+    # Skor: bulunan kelime sayısına göre (5+ kelime = 1.0)
+    score = min(1.0, len(keywords_found) / 5.0)
+    
+    return {
+        "is_valid": score >= 0.2,  # En az 1 kelime bulunmalı
+        "score": score,
+        "reason": f"{len(keywords_found)} medikal kelime bulundu",
+        "keywords_found": keywords_found[:10]
+    }
+
+
+def _extract_entities(ocr_text: str) -> dict:
+    """OCR metninden basit entity çıkarımı"""
+    entities = {}
+    text_lower = ocr_text.lower()
+    
+    # Yaygın ilaç isimleri (gerçek sistemde AI kullanılır)
+    drug_names = [
+        "paracetamol", "ibuprofen", "amoxicillin", "omeprazole", 
+        "metformin", "atorvastatin", "lisinopril", "salbutamol",
+        "cetirizine", "pantoprazol", "aspirin", "metoprolol",
+        "amlodipin", "losartan", "ramipril", "bisoprolol",
+        "prednol", "dekort", "avil", "nurofen", "majezik",
+        "dolven", "apranax", "muscoril", "parol", "talvos",
+        "rifampisin", "izoniazid", "etambutol", "pirazinamid"
+    ]
+    
+    drug_idx = 0
+    for drug in drug_names:
+        if drug in text_lower:
+            entities[f"drug_{drug_idx}"] = {
+                "name": drug.title(),
+                "confidence": 0.85,
+                "type": "medication"
+            }
+            drug_idx += 1
+    
+    return entities
+
+
 def _log_analysis(db: Session, filename: str, image_hash: str, relevance_score: float, 
                 avg_confidence: float, status: str, extracted_entities: dict, 
                 latency_ms: float, qa_summary: str, ocr_preview: str = None):
-    """Log analysis with enhanced details for admin panel"""
+    """Analizi veritabanına kaydet"""
     try:
-        # Truncate long text fields for storage efficiency
         ocr_preview = (ocr_preview[:500] + "...") if ocr_preview and len(ocr_preview) > 500 else ocr_preview
         qa_summary = (qa_summary[:500] + "...") if qa_summary and len(qa_summary) > 500 else qa_summary
         
         log_entry = Analysis(
-            filename=filename[:255],  # Limit filename length
+            filename=filename[:255],
             image_hash=image_hash,
             relevance_score=relevance_score,
             avg_confidence=avg_confidence,
             status=status,
-            # New fields for admin panel
             upload_timestamp=datetime.utcnow(),
             analysis_duration_ms=int(latency_ms),
             ocr_text_preview=ocr_preview,
             entities_json=extracted_entities if extracted_entities else {},
             confidence_score=avg_confidence,
-            # Existing fields
             extracted_entities=json.dumps(extracted_entities) if extracted_entities else "{}",
             latency_ms=int(latency_ms),
             qa_summary=qa_summary
         )
         db.add(log_entry)
         db.commit()
-        logger.info(f"Analysis logged: {filename} -> {status}")
+        logger.info(f"✅ Analysis logged: {filename} -> {status}")
     except Exception as e:
-        logger.error(f"Logging failed: {e}")
+        logger.error(f"❌ Logging failed: {e}")
         db.rollback()
-        # Don't raise - logging failure shouldn't break the API
+
 
 @router.post("/analyze")
 async def analyze_image(
@@ -141,7 +142,7 @@ async def analyze_image(
         if ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(400, detail="Desteklenmeyen dosya formatı.")
         
-        # Save uploaded file
+        # Dosyayı kaydet
         tmp_path = f"uploads/{uuid.uuid4().hex}{ext}"
         os.makedirs("uploads", exist_ok=True)
         with open(tmp_path, "wb") as f:
@@ -151,14 +152,22 @@ async def analyze_image(
                 raise HTTPException(400, detail="Dosya boyutu 5MB limitini aşıyor.")
             f.write(content)
         
-        # Validation with OCR
-        val = validator.check(tmp_path)
         image_hash = hashlib.sha256(content).hexdigest()
-        ocr_preview = val.get("debug", {}).get("sample_keywords", [])
-        ocr_preview_str = ", ".join(ocr_preview[:10]) if ocr_preview else None
         
-        # Reject if not medical content
-        if val["score"] < 0.4:
+        # ✅ GERÇEK OCR (Tesseract)
+        logger.info(f"🔍 Starting OCR for: {file.filename}")
+        ocr_text = _perform_ocr(tmp_path)
+        logger.info(f"📝 OCR text length: {len(ocr_text)} chars")
+        logger.info(f"📝 OCR preview: {ocr_text[:200]}")
+        
+        # ✅ Medikal içerik kontrolü
+        val = _check_medical_content(ocr_text)
+        logger.info(f"🔬 Medical check: score={val['score']:.2f}, valid={val['is_valid']}, keywords={val['keywords_found']}")
+        
+        ocr_preview_str = ", ".join(val.get("keywords_found", []))
+        
+        # Tıbbi içerik yoksa reddet
+        if not val["is_valid"]:
             latency_ms = (time.time() - start_time) * 1000
             background_tasks.add_task(_cleanup_temp_file, tmp_path)
             _log_analysis(
@@ -167,46 +176,46 @@ async def analyze_image(
             )
             return {
                 "status": "rejected",
-                "reason": "Yalnızca hantavirüs teşhis/tedavi süreçlerine ait reçete, laboratuvar raporu veya tıbbi görseller kabul edilmektedir.",
+                "reason": "Yalnızca reçete, laboratuvar raporu veya tıbbi görseller kabul edilmektedir. Yeterli medikal içerik bulunamadı.",
                 "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın."
             }
 
-        # Florence-2 inference
-        img = Image.open(tmp_path).convert("RGB")
-        res = model.analyze(img)
+        # ✅ Entity çıkarımı
+        entities = _extract_entities(ocr_text)
+        logger.info(f"📦 Entities extracted: {len(entities)}")
         
-        # Cleanup temp file
+        # Geçici dosyayı sil
         background_tasks.add_task(_cleanup_temp_file, tmp_path)
         
-        # PII redaction
-        redacted = redactor.clean_json(res.get("entities", {}))
-        
-        # Determine status and summary
+        # Durum belirle
+        avg_confidence = val["score"]
         qa_summary = ""
         status_val = "accepted"
-        if res["avg_confidence"] < CONFIDENCE_THRESHOLD or res.get("fallback"):
-            qa_summary = "Yetersiz veri veya düşük güven skoru. Lütfen doktorunuza danışın."
+        
+        if avg_confidence < CONFIDENCE_THRESHOLD:
+            qa_summary = "Yetersiz veri veya düşük güven skoru. Lütfen daha net bir görsel yükleyin veya doktorunuza danışın."
             status_val = "low_confidence"
         else:
-            qa_summary = "Veriler analiz edildi. Sonuçlar bilgilendirme amaçlıdır."
+            qa_summary = f"Veriler başarıyla analiz edildi. {len(entities)} ilaç/etken madde tespit edildi. Sonuçlar bilgilendirme amaçlıdır."
         
-        # Log with enhanced details
+        # Veritabanına kaydet
         latency_ms = (time.time() - start_time) * 1000
         _log_analysis(
-            db, file.filename, image_hash, val["score"], res["avg_confidence"], 
-            status_val, redacted, latency_ms, qa_summary, ocr_preview_str
+            db, file.filename, image_hash, val["score"], avg_confidence, 
+            status_val, entities, latency_ms, qa_summary, ocr_preview_str
         )
         
         return {
             "status": "success" if status_val == "accepted" else "warning",
-            "entities": redacted,
-            "avg_confidence": res["avg_confidence"],
+            "entities": entities,
+            "avg_confidence": avg_confidence,
             "qa_summary": qa_summary,
             "disclaimer": "Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın.",
             "metadata": {
                 "latency_ms": int(latency_ms),
-                "model_version": "florence-2-base-fallback" if res.get("fallback") else "florence-2-base",
-                "filename": file.filename
+                "model_version": "tesseract-ocr-tur+eng",
+                "filename": file.filename,
+                "keywords_found": val.get("keywords_found", [])
             }
         }
         
@@ -215,7 +224,7 @@ async def analyze_image(
             background_tasks.add_task(_cleanup_temp_file, tmp_path)
         raise
     except Exception as e:
-        logger.error(f"Analyze failed: {e}", exc_info=True)
+        logger.error(f"❌ Analyze failed: {e}", exc_info=True)
         if tmp_path and os.path.exists(tmp_path):
             background_tasks.add_task(_cleanup_temp_file, tmp_path)
-        raise HTTPException(500, detail="Analiz sırasında beklenmeyen hata.")
+        raise HTTPException(500, detail=f"Analiz sırasında beklenmeyen hata: {str(e)}")
