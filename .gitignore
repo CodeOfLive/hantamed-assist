@@ -16,3 +16,21 @@ build/
 # Render specific
 !.gitkeep
 data/raw/synth_imgs/
+
+# Test & Utility scripts (should not be in production)
+add_sample_drugs.py
+check_db.py
+fix_filename_column.py
+test_filename.py
+generate_test_prescriptions.py
+
+# Test data
+test_prescriptions/
+
+# Backup files
+*.backup
+*.bak
+src/models.py.backup
+
+# Alembic (using manual migrations instead)
+alembic/
