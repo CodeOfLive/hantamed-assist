@@ -70,7 +70,8 @@ async def login_for_access_token(
                 httponly=True, 
                 max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                 samesite="lax",
-                secure=False  # Render HTTPS için True yapabilirsiniz
+                patch= "/",  # ✅ EKLENDİ - Tüm path'lerde geçerli
+                secure=True  # ✅ EKLENDİ - HTTPS için zorunlu (Render HTTPS kullanıyor)
             )
             logger.info(f"✅ Cookie set, redirecting to /admin/")
             return response
