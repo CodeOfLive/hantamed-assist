@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <!-- ✅ WCAG: Skip link for keyboard users -->
     <a href="#main-content" class="sr-only skip-link">Ana içeriğe atla</a>
     
     <nav aria-label="Ana menü">
         <div class="nav-content">
-            <h1>HantaMed Assist</h1>
+            <h1>🛡️ HantaMed Assist</h1>
             <div class="nav-links">
                 <a href="/legal">Yasal Bilgilendirme</a>
                 <a href="/login">Giriş</a>
@@ -21,7 +20,6 @@
     </nav>
     
     <main class="container" id="main-content" tabindex="-1">
-        <!-- ✅ WCAG: Alert role for important notices -->
         <section class="card disclaimer-banner" role="alert" aria-live="polite">
             <span class="icon" aria-hidden="true">🔒</span>
             <p>Verileriniz işlendikten sonra otomatik olarak silinir. KVKK uyumlu anonim sistem.</p>
@@ -29,10 +27,9 @@
         
         <section class="card upload-section" aria-labelledby="upload-heading">
             <h2 id="upload-heading">Reçete veya Rapor Yükle</h2>
-            <form id="analyzeForm" enctype="multipart/form-data" aria-describedby="form-help">
-                <!-- ✅ Enhanced Drop Zone with visual feedback -->
-                <label class="file-drop" id="dropZone" aria-label="Reçete veya rapor görseli yükleyin. Sürükleyip bırakın veya tıklayın.">
-                    <input type="file" name="file" id="fileInput" accept=".png,.jpg,.jpeg" required aria-required="true">
+            <form id="analyzeForm" enctype="multipart/form-data">
+                <label class="file-drop" id="dropZone">
+                    <input type="file" name="file" id="fileInput" accept=".png,.jpg,.jpeg" required>
                     <div class="drop-content">
                         <div class="drop-icon">📄</div>
                         <div class="drop-text">Sürükleyin veya tıklayın (Max 5MB)</div>
@@ -40,30 +37,24 @@
                     </div>
                 </label>
                 
-                <!-- ✅ WCAG: Policy checkbox with describedby -->
                 <div class="policy-check">
-                    <input type="checkbox" id="policyAccept" required aria-required="true" aria-describedby="policy-help">
+                    <input type="checkbox" id="policyAccept" required>
                     <label for="policyAccept">Veri işleme politikasını okudum, onaylıyorum.</label>
                 </div>
-                <span id="policy-help" class="sr-only">Bu onay, verilerinizin anonim olarak işlenmesine ve otomatik silinmesine izin verir.</span>
                 
-                <span id="form-help" class="sr-only">Yalnızca reçete, laboratuvar raporu veya tahlil görselleri kabul edilmektedir. Diğer belge türleri otomatik reddedilir.</span>
+                <div id="progress" class="progress-bar" style="width:0%"></div>
                 
-                <!-- ✅ WCAG: Progress bar with aria attributes -->
-                <div id="progress" class="progress-bar" style="width:0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Yükleme ilerlemesi"></div>
-                
-                <button type="submit" id="submitBtn" disabled aria-disabled="true">
+                <button type="submit" id="submitBtn" disabled>
                     <span class="btn-text">Analiz Et</span>
                     <span class="btn-loading" style="display:none;">⏳ İşleniyor...</span>
                 </button>
             </form>
         </section>
 
-        <!-- ✅ WCAG: Result section with live region for announcements -->
-        <section id="resultCard" class="card result-section hidden" aria-live="polite" aria-atomic="true" tabindex="-1">
-            <div id="badge" aria-hidden="true"></div>
+        <section id="resultCard" class="card result-section hidden">
+            <div id="badge"></div>
             <h3 id="resTitle"></h3>
-            <pre id="resData" aria-label="Analiz sonuçları"></pre>
+            <pre id="resData"></pre>
             <p id="resSummary"></p>
         </section>
     </main>
@@ -74,15 +65,128 @@
             <div class="footer-links">
                 <a href="/legal">Yasal Uyarı</a>
                 <a href="/legal">Gizlilik Politikası</a>
-                <a href="#">İletişim</a>
             </div>
         </div>
-        <div class="disclaimer-footer" role="contentinfo">Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın.</div>
+        <div class="disclaimer-footer">Bu sistem yalnızca bilgilendirme amaçlıdır. Teşhis, tedavi veya ilaç önerisi yapmaz. Tüm kararlar için yetkili hekime danışın.</div>
     </footer>
     
-    <!-- ✅ WCAG: Screen reader announcer for dynamic updates -->
-    <div id="sr-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
-    
-    <script src="/static/app.js"></script>
+    <!-- ✅ INLINE JAVASCRIPT (app.js bağımlılığını kaldırır) -->
+    <script>
+    (function() {
+        const form = document.getElementById('analyzeForm');
+        const fileInput = document.getElementById('fileInput');
+        const policyAccept = document.getElementById('policyAccept');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnLoading = submitBtn.querySelector('.btn-loading');
+        const progress = document.getElementById('progress');
+        const resultCard = document.getElementById('resultCard');
+        const badge = document.getElementById('badge');
+        const resTitle = document.getElementById('resTitle');
+        const resData = document.getElementById('resData');
+        const resSummary = document.getElementById('resSummary');
+
+        // Form validasyonu
+        function validateForm() {
+            submitBtn.disabled = !(fileInput.files.length > 0 && policyAccept.checked);
+        }
+        fileInput.addEventListener('change', validateForm);
+        policyAccept.addEventListener('change', validateForm);
+
+        // Dosya seçimi görsel geri bildirimi
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                document.querySelector('.drop-text').textContent = this.files[0].name;
+            }
+        });
+
+        // Form gönderimi
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!fileInput.files.length) {
+                alert('Lütfen bir dosya seçin.');
+                return;
+            }
+
+            // UI'ı hazırla
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            submitBtn.disabled = true;
+            progress.style.width = '30%';
+            resultCard.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('accepted_policy', 'true');
+
+            try {
+                progress.style.width = '60%';
+                
+                // ✅ ÖNEMLİ: Content-Type header'ı EKLEME! FormData otomatik ayarlar
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progress.style.width = '90%';
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                progress.style.width = '100%';
+                
+                displayResult(result);
+                
+            } catch (error) {
+                console.error('❌ Analiz hatası:', error);
+                resultCard.classList.remove('hidden');
+                badge.textContent = '🔴';
+                badge.style.fontSize = '3rem';
+                resTitle.textContent = 'Hata';
+                resSummary.textContent = 'Sunucu yanıtı okunamadı: ' + error.message;
+                resData.textContent = '';
+            } finally {
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+                submitBtn.disabled = false;
+                setTimeout(() => { progress.style.width = '0%'; }, 2000);
+            }
+        });
+
+        function displayResult(result) {
+            resultCard.classList.remove('hidden');
+            
+            if (result.status === 'success') {
+                badge.textContent = '🟢';
+                badge.style.fontSize = '3rem';
+                resTitle.textContent = 'Başarılı Analiz';
+                resSummary.textContent = result.qa_summary || 'Veriler başarıyla analiz edildi.';
+                resData.textContent = JSON.stringify(result.entities || {}, null, 2);
+            } else if (result.status === 'warning') {
+                badge.textContent = '🟡';
+                badge.style.fontSize = '3rem';
+                resTitle.textContent = 'Yetersiz Veri / Düşük Güven';
+                resSummary.textContent = result.qa_summary || 'Doktorunuza danışın.';
+                resData.textContent = JSON.stringify(result, null, 2);
+            } else if (result.status === 'rejected') {
+                badge.textContent = '🔴';
+                badge.style.fontSize = '3rem';
+                resTitle.textContent = 'Reddedildi';
+                resSummary.textContent = result.reason || 'Bu görsel kabul edilemez.';
+                resData.textContent = '';
+            } else {
+                badge.textContent = '⚪';
+                badge.style.fontSize = '3rem';
+                resTitle.textContent = 'Bilinmeyen Durum';
+                resSummary.textContent = 'Beklenmeyen yanıt.';
+                resData.textContent = JSON.stringify(result, null, 2);
+            }
+        }
+    })();
+    </script>
 </body>
 </html>

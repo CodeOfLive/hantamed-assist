@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
-
+# ✅ Upload klasörünü oluştur
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 # Set ownership
 RUN chown -R appuser:appuser /app
 

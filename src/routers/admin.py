@@ -56,20 +56,20 @@ async def admin_dashboard(
         avg_conf_result = db.query(func.avg(Analysis.confidence_score)).filter(Analysis.confidence_score > 0).first()
         avg_conf = round(avg_conf_result[0], 3) if avg_conf_result and avg_conf_result[0] else 0.0
         
-        recent = db.query(Analysis).order_by(desc(Analysis.upload_timestamp)).limit(20).all()
+        recent = db.query(Analysis).order_by(desc(Analysis.id)).limit(20).all()
         recent_analyses = []
         for a in recent:
             recent_analyses.append({
                 "id": a.id,
                 "filename": a.filename or "unknown",
-                "status": a.status,
-                "confidence": round(a.confidence_score, 3) if a.confidence_score else None,
-                "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else None,
-                "analysis_duration_ms": a.analysis_duration_ms,
+                "status": a.status or "unknown",
+                "confidence": round(a.confidence_score, 3) if a.confidence_score else 0.0,
+                "upload_date": a.upload_timestamp.isoformat() if a.upload_timestamp else "N/A",
+                "analysis_duration_ms": a.analysis_duration_ms or 0,
                 "ocr_preview": (a.ocr_text_preview[:100] + "...") if a.ocr_text_preview else None,
                 "entities_count": len(a.entities_json) if a.entities_json else 0,
-                "entities_json": a.entities_json,
-                "qa_summary": a.qa_summary
+                "entities_json": a.entities_json or {},
+                "qa_summary": a.qa_summary or ""
             })
         
         try:
